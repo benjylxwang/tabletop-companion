@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "pnpm --filter @tabletop/shared build && tsc --noEmit && vite build",
     "preview": "vite preview",
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-8080}",
