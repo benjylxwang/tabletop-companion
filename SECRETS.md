@@ -4,7 +4,8 @@ Exactly three secrets are needed. They live in different places — don't mix th
 
 ## GitHub Actions (Settings → Secrets and variables → Actions)
 
-- **`RAILWAY_TOKEN`** — account or team token with read access to the Railway project. Used by `.github/scripts/wait-for-railway.mjs` to poll deployment status and resolve preview URLs. Create at https://railway.app/account/tokens.
+- **`RAILWAY_TOKEN`** — Railway API token with read access to the project. Create at https://railway.app/account/tokens (or a team/project token). Used by `.github/scripts/wait-for-railway.mjs` to poll deployment status.
+- **`RAILWAY_PROJECT_ID`** — the project UUID. Visible in any Railway dashboard URL, e.g. `railway.com/project/<this-uuid>/...`. Required because most Railway tokens can't enumerate projects via the API.
 
 ## Railway (api service → Variables)
 

@@ -37,8 +37,8 @@ jobs:
         id: railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-          REPO: ${{ github.repository }}
           TIMEOUT_MS: "180000"
         run: node .github/scripts/wait-for-railway.mjs
 

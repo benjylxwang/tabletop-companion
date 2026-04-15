@@ -21,14 +21,14 @@
 // (project id, service ids) are required, because the token scopes the lookup.
 
 const TOKEN = process.env.RAILWAY_TOKEN;
+const PROJECT_ID = process.env.RAILWAY_PROJECT_ID;
 const SHA = process.env.COMMIT_SHA;
-const REPO = process.env.REPO;
 const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 180_000);
 const POLL_MS = 10_000;
 const API = 'https://backboard.railway.app/graphql/v2';
 
-if (!TOKEN || !SHA || !REPO) {
-  console.error('missing required env: RAILWAY_TOKEN, COMMIT_SHA, REPO');
+if (!TOKEN || !SHA || !PROJECT_ID) {
+  console.error('missing required env: RAILWAY_TOKEN, RAILWAY_PROJECT_ID, COMMIT_SHA');
   process.exit(2);
 }
 
@@ -46,38 +46,10 @@ async function gql(query, variables = {}) {
   return json.data;
 }
 
-async function findProjectId() {
-  // Project tokens: pinned to a single project. Expose it via `projectToken`.
-  // Account/team tokens: can query `me { projects }`. We try both so the
-  // script works regardless of which kind RAILWAY_TOKEN is, without
-  // introducing an extra secret.
-  try {
-    const data = await gql(`query { projectToken { projectId } }`);
-    if (data?.projectToken?.projectId) return data.projectToken.projectId;
-  } catch (err) {
-    // Fall through — token isn't a project token.
-  }
-
-  const data = await gql(`
-    query {
-      me {
-        projects {
-          edges { node { id name } }
-        }
-      }
-    }
-  `);
-  const projects = data.me.projects.edges.map((e) => e.node);
-  if (projects.length === 0) throw new Error('No Railway projects on this token');
-
-  const repoName = REPO.split('/')[1].toLowerCase();
-  const byName = projects.find((p) => p.name.toLowerCase().includes(repoName));
-  if (byName) return byName.id;
-  if (projects.length === 1) return projects[0].id;
-  throw new Error(
-    `Cannot disambiguate project. Candidates: ${projects.map((p) => p.name).join(', ')}`,
-  );
-}
+// Project ID is supplied explicitly via RAILWAY_PROJECT_ID. We tried
+// auto-discovering via `me`/`projectToken` queries, but Railway tokens with
+// narrow scopes reject those. Explicit is simpler and works for every token
+// type.
 
 async function getServices(projectId) {
   const data = await gql(
@@ -148,7 +120,7 @@ function setOutput(key, value) {
 }
 
 async function main() {
-  const projectId = await findProjectId();
+  const projectId = PROJECT_ID;
   console.log(`project=${projectId}`);
   const deadline = Date.now() + TIMEOUT_MS;
 
