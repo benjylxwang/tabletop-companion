@@ -47,6 +47,17 @@ async function gql(query, variables = {}) {
 }
 
 async function findProjectId() {
+  // Project tokens: pinned to a single project. Expose it via `projectToken`.
+  // Account/team tokens: can query `me { projects }`. We try both so the
+  // script works regardless of which kind RAILWAY_TOKEN is, without
+  // introducing an extra secret.
+  try {
+    const data = await gql(`query { projectToken { projectId } }`);
+    if (data?.projectToken?.projectId) return data.projectToken.projectId;
+  } catch (err) {
+    // Fall through — token isn't a project token.
+  }
+
   const data = await gql(`
     query {
       me {
@@ -59,7 +70,6 @@ async function findProjectId() {
   const projects = data.me.projects.edges.map((e) => e.node);
   if (projects.length === 0) throw new Error('No Railway projects on this token');
 
-  // Try to match by name containing the repo name; fall back to single-project default.
   const repoName = REPO.split('/')[1].toLowerCase();
   const byName = projects.find((p) => p.name.toLowerCase().includes(repoName));
   if (byName) return byName.id;
