@@ -7,7 +7,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"pnpm --filter api dev\" \"pnpm --filter frontend dev\"",
+    "predev": "pnpm --filter @tabletop/shared build",
+    "dev": "concurrently -n shared,api,web -c gray,blue,green \"pnpm --filter @tabletop/shared dev\" \"pnpm --filter api dev\" \"pnpm --filter frontend dev\"",
     "build": "pnpm -r build",
     "test:e2e": "pnpm --filter e2e test",
     "lint": "pnpm -r lint"

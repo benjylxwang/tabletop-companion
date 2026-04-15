@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "pnpm --filter @tabletop/shared build && tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "echo 'no lint yet'"
   },

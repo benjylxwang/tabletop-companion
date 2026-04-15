@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "pnpm --filter @tabletop/shared build && tsc",
     "start": "node dist/index.js",
     "lint": "echo 'no lint yet'"
   },
