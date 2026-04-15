@@ -18,8 +18,8 @@ app.use(
       try {
         const { hostname } = new URL(origin);
         if (hostname === 'localhost' || hostname === '127.0.0.1') return cb(null, true);
-        if (/\.vercel\.app$/.test(hostname)) return cb(null, true);
-        if (/\.onrender\.com$/.test(hostname)) return cb(null, true);
+        if (/\.up\.railway\.app$/.test(hostname)) return cb(null, true);
+        if (/\.railway\.app$/.test(hostname)) return cb(null, true);
       } catch {
         // fall through to block
       }

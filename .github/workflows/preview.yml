@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  e2e:
+  ci:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,14 +24,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Resolve Vercel preview URL
-        id: vercel
-        uses: zentered/vercel-preview-url@v1.2.1
+      # Fail-fast gates: type-check everything and run any lint stubs. Runs
+      # before we wait on Railway so a bad PR is rejected immediately instead
+      # of burning 3 min of polling.
+      - name: Type-check
+        run: pnpm -r build
+
+      - name: Lint
+        run: pnpm -r lint
+
+      # Railway auto-deploys from its own GitHub integration — CI does NOT deploy.
+      # We just wait for both services' deployments for this commit to go live.
+      - name: Wait for Railway deployments
+        id: railway
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        with:
-          vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
-          vercel_project_id: ${{ secrets.VERCEL_PROJECT_ID }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          TIMEOUT_MS: "180000"
+        run: node .github/scripts/wait-for-railway.mjs
 
       - name: Install Playwright browsers
         run: pnpm --filter e2e exec playwright install --with-deps chromium
@@ -39,7 +50,7 @@ jobs:
       - name: Run Playwright tests
         id: pw
         env:
-          PLAYWRIGHT_BASE_URL: "https://${{ steps.vercel.outputs.preview_url }}"
+          PLAYWRIGHT_BASE_URL: ${{ steps.railway.outputs.frontend_url }}
         run: pnpm test:e2e
 
       - name: Upload Playwright report
@@ -60,6 +71,7 @@ jobs:
           message: |
             **Preview checks: ${{ steps.pw.outcome == 'success' && '✅ PASS' || '❌ FAIL' }}**
 
-            - Preview URL: https://${{ steps.vercel.outputs.preview_url }}
+            - Frontend: ${{ steps.railway.outputs.frontend_url || '_not resolved_' }}
+            - API: ${{ steps.railway.outputs.api_url || '_not resolved_' }}
             - [Playwright report artifact](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)
             - [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})

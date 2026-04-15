@@ -1,0 +1,16 @@
+{
+  "_comment": "Informational root-level manifest. Railway's actual service config lives in frontend/railway.json and api/railway.json. Each service in the Railway project must be configured with its Root Directory set to the corresponding subdirectory below so Nixpacks finds the right package.",
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": [
+    {
+      "name": "frontend",
+      "rootDirectory": "frontend",
+      "config": "frontend/railway.json"
+    },
+    {
+      "name": "api",
+      "rootDirectory": "api",
+      "config": "api/railway.json"
+    }
+  ]
+}
