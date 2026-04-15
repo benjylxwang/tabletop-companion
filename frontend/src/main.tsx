@@ -16,3 +16,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+// smoke test 2026-04-15T15:09:38Z
