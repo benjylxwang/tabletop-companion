@@ -1,4 +1,4 @@
 {
   "build": { "builder": "NIXPACKS" },
-  "deploy": { "staticDir": "dist" }
+  "deploy": { "startCommand": "pnpm start" }
 }
