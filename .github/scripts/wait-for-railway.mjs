@@ -139,11 +139,21 @@ async function main() {
       latestDeployment(projectId, api.id),
     ]);
 
-    const feMatch = feDeploys.find((d) => matches(d) && d.status === 'SUCCESS');
-    const apiMatch = apiDeploys.find((d) => matches(d) && d.status === 'SUCCESS');
+    // Prefer a deployment matching THIS commit SHA, but fall back to the most
+    // recent SUCCESS. Railway skips deploys when a service's watched paths
+    // aren't modified (`No deployment needed - watched paths not modified`),
+    // which means the currently-live deployment is from an earlier commit and
+    // no SHA match will ever appear. Accepting "most recent SUCCESS" covers
+    // that case while still preferring exact matches when present.
+    const pickReady = (deploys) =>
+      deploys.find((d) => matches(d) && d.status === 'SUCCESS') ??
+      deploys.find((d) => d.status === 'SUCCESS');
 
-    const feAny = feDeploys.find(matches);
-    const apiAny = apiDeploys.find(matches);
+    const feMatch = pickReady(feDeploys);
+    const apiMatch = pickReady(apiDeploys);
+
+    const feAny = feDeploys.find(matches) ?? feDeploys[0];
+    const apiAny = apiDeploys.find(matches) ?? apiDeploys[0];
 
     if ([feAny, apiAny].some((d) => d?.status === 'FAILED' || d?.status === 'CRASHED')) {
       throw new Error(
