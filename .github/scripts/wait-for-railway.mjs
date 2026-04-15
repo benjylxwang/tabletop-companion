@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 // Poll Railway's GraphQL API until the frontend and api services both have a
 // SUCCESS deployment for the given commit SHA, then emit their public URLs.
 //
@@ -114,7 +115,7 @@ function matches(dep) {
 function setOutput(key, value) {
   const line = `${key}=${value}\n`;
   if (process.env.GITHUB_OUTPUT) {
-    require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, line);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, line);
   }
   console.log(line.trim());
 }
