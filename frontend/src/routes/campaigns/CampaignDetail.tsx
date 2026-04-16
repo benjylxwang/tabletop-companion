@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCampaign, updateCampaign, deleteCampaign } from '../../lib/api';
+import {
+  fetchCampaign,
+  updateCampaign,
+  deleteCampaign,
+  fetchCampaignMembers,
+  addCampaignMember,
+  removeCampaignMember,
+} from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
-
+import { useAuth } from '../../lib/auth';
 import {
   Button,
   FormField,
@@ -12,6 +19,7 @@ import {
   Select,
   Spinner,
   ErrorDisplay,
+  EmptyState,
 } from '../../components';
 import type { CampaignStatusEnum } from '@tabletop/shared';
 
@@ -26,7 +34,6 @@ export default function CampaignDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { viewMode, isPlayerView } = useViewMode();
-  
   const [editing, setEditing] = useState(false);
 
   const { data, isLoading, error } = useQuery({
@@ -213,6 +220,112 @@ export default function CampaignDetail() {
           </p>
           <p className="text-sm text-slate-300 whitespace-pre-wrap">{campaign.dm_notes}</p>
         </div>
+      )}
+
+      <MembersSection campaignId={id!} isDm={isDm} />
+    </div>
+  );
+}
+
+// ─── Members section ──────────────────────────────────────────────────────────
+
+function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolean }) {
+  const queryClient = useQueryClient();
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['campaign', campaignId, 'members'],
+    queryFn: () => fetchCampaignMembers(campaignId),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (email: string) => addCampaignMember(campaignId, email),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'members'] });
+      setInviteEmail('');
+      setInviteError(null);
+    },
+    onError: (err: Error) => {
+      setInviteError(err.message === 'user_not_found'
+        ? 'No account found with that email.'
+        : err.message === 'already_member'
+          ? 'This person is already a member.'
+          : 'Failed to add member. Please try again.');
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (userId: string) => removeCampaignMember(campaignId, userId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'members'] });
+    },
+  });
+
+  function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteError(null);
+    addMutation.mutate(inviteEmail);
+  }
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold text-slate-100 mb-4">Members</h2>
+
+      {isLoading && <p className="text-slate-400 text-sm">Loading members…</p>}
+
+      {data && data.members.length === 0 && (
+        <EmptyState title="No members yet" description="Invite players to join." />
+      )}
+
+      {data && data.members.length > 0 && (
+        <ul className="space-y-2 mb-4">
+          {data.members.map((m) => (
+            <li
+              key={m.user_id}
+              className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-4 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-medium text-slate-200 font-mono">{m.user_id}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{m.role}</p>
+              </div>
+              {isDm && m.user_id !== user?.id && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => removeMutation.mutate(m.user_id)}
+                  isLoading={removeMutation.isPending && removeMutation.variables === m.user_id}
+                >
+                  Remove
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {isDm && (
+        <form onSubmit={handleInvite} className="flex flex-col gap-2 max-w-md">
+          <div className="flex gap-2">
+            <TextInput
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="player@example.com"
+              required
+              error={!!inviteError}
+            />
+            <Button type="submit" isLoading={addMutation.isPending} className="shrink-0">
+              Invite
+            </Button>
+          </div>
+          {inviteError && (
+            <p role="alert" className="text-sm text-red-400">
+              {inviteError}
+            </p>
+          )}
+        </form>
       )}
     </div>
   );
