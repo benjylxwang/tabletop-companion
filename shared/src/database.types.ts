@@ -408,9 +408,9 @@ export type Database = {
           id: string
           campaign_id: string
           title: string
-          category: 'history' | 'magic' | 'religion' | 'politics' | 'other'
+          category: 'History' | 'Magic' | 'Religion' | 'Politics' | 'Other'
           content: string | null
-          visibility: 'private' | 'public' | 'revealed'
+          visibility: 'Public' | 'Private' | 'Revealed'
           revealed_to: string[] | null
           dm_notes: string | null
           created_at: string
@@ -420,9 +420,9 @@ export type Database = {
           id?: string
           campaign_id: string
           title: string
-          category: 'history' | 'magic' | 'religion' | 'politics' | 'other'
+          category: 'History' | 'Magic' | 'Religion' | 'Politics' | 'Other'
           content?: string | null
-          visibility?: 'private' | 'public' | 'revealed'
+          visibility?: 'Public' | 'Private' | 'Revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
@@ -432,9 +432,9 @@ export type Database = {
           id?: string
           campaign_id?: string
           title?: string
-          category?: 'history' | 'magic' | 'religion' | 'politics' | 'other'
+          category?: 'History' | 'Magic' | 'Religion' | 'Politics' | 'Other'
           content?: string | null
-          visibility?: 'private' | 'public' | 'revealed'
+          visibility?: 'Public' | 'Private' | 'Revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
