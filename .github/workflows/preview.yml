@@ -54,11 +54,33 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter e2e exec playwright install --with-deps chromium
 
+      # Service-role key is not stored as a repo secret — we pull it from the
+      # Supabase Management API at CI time using the existing access token.
+      # Keeps one less secret to rotate.
+      - name: Fetch Supabase service-role key
+        id: supabase_keys
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          resp=$(curl -sSf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/api-keys")
+          key=$(echo "$resp" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          if [ -z "$key" ] || [ "$key" = "null" ]; then
+            echo "::error::Failed to resolve service_role key from Supabase Management API"
+            exit 1
+          fi
+          echo "::add-mask::$key"
+          echo "service_role_key=$key" >> "$GITHUB_OUTPUT"
+
       - name: Run Playwright tests
         id: pw
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.railway.outputs.frontend_url }}
           PLAYWRIGHT_API_URL: ${{ steps.railway.outputs.api_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase_keys.outputs.service_role_key }}
         run: pnpm test:e2e
 
       - name: Upload Playwright report
