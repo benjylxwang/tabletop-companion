@@ -617,6 +617,21 @@ export type GenerateFieldRequest = z.infer<typeof GenerateFieldRequest>;
 export const GenerateFieldResponse = z.object({ text: z.string() });
 export type GenerateFieldResponse = z.infer<typeof GenerateFieldResponse>;
 
+export const GenerateEntityFieldsRequest = z.object({
+  campaign_id: z.string(),
+  entity_type: GenerateFieldEntityType,
+  fields: z.array(z.string().min(1).max(100)).min(1).max(20),
+  entity_draft: z.record(z.unknown()).optional(),
+  user_hint: z.string().max(500).optional(),
+  provider: AIProvider.optional(),
+});
+export type GenerateEntityFieldsRequest = z.infer<typeof GenerateEntityFieldsRequest>;
+
+export const GenerateEntityFieldsResponse = z.object({
+  fields: z.record(z.string()),
+});
+export type GenerateEntityFieldsResponse = z.infer<typeof GenerateEntityFieldsResponse>;
+
 // ─── AI image generator ───────────────────────────────────────────────────────
 
 export const GenerateImageEntityType = z.enum(['campaign', 'location', 'npc', 'character']);

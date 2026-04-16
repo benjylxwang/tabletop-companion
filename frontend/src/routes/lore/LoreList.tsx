@@ -4,11 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCampaign, fetchLores, createLore } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   Modal,
   FormField,
-  TextInput,
-  Textarea,
+  GenerateAllFieldsButton,
   Select,
   EmptyState,
   ErrorDisplay,
@@ -118,8 +119,12 @@ function CreateLoreModal({
     <Modal open={open} onClose={onClose} title="New Lore Entry" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField label="Title" htmlFor="lore-title" required>
-          <TextInput
+          <AITextInput
             id="lore-title"
+            campaignId={campaignId}
+            entityType="lore"
+            fieldName="title"
+            entityDraft={{ title, category, content, visibility }}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
@@ -148,8 +153,12 @@ function CreateLoreModal({
         </div>
 
         <FormField label="Content" htmlFor="lore-content">
-          <Textarea
+          <AITextarea
             id="lore-content"
+            campaignId={campaignId}
+            entityType="lore"
+            fieldName="content"
+            entityDraft={{ title, category, content, visibility }}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={4}
@@ -157,14 +166,29 @@ function CreateLoreModal({
           />
         </FormField>
 
+        <GenerateAllFieldsButton
+          campaignId={campaignId}
+          entityType="lore"
+          entityDraft={{ title, category, content, visibility }}
+          fields={[
+            { fieldName: 'title', onChange: (v) => setTitle(v) },
+            { fieldName: 'content', onChange: (v) => setContent(v) },
+            ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+          ]}
+        />
+
         {!isPlayerView && (
           <FormField
             label="DM Notes"
             htmlFor="lore-dm-notes"
             hint="Visible to DMs only — true secrets, plot hooks, hidden connections"
           >
-            <Textarea
+            <AITextarea
               id="lore-dm-notes"
+              campaignId={campaignId}
+              entityType="lore"
+              fieldName="dm_notes"
+              entityDraft={{ title, category, content, visibility }}
               value={dmNotes}
               onChange={(e) => setDmNotes(e.target.value)}
               rows={3}

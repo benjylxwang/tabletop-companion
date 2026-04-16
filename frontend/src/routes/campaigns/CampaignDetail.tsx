@@ -11,12 +11,13 @@ import {
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextarea,
   Button,
   FileUpload,
   FormField,
+  GenerateAllFieldsButton,
   GenerateImageButton,
   TextInput,
-  Textarea,
   Select,
   Spinner,
   ErrorDisplay,
@@ -278,13 +279,27 @@ export default function CampaignDetail() {
           </FormField>
 
           <FormField label="Description" htmlFor="edit-description">
-            <Textarea
+            <AITextarea
               id="edit-description"
+              campaignId={id!}
+              entityType="campaign"
+              fieldName="description"
+              entityDraft={{ name, system, description, status }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
           </FormField>
+
+          <GenerateAllFieldsButton
+            campaignId={id!}
+            entityType="campaign"
+            entityDraft={{ name, system, description, status }}
+            fields={[
+              { fieldName: 'description', onChange: (v) => setDescription(v) },
+              ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+            ]}
+          />
 
           <FormField label="Status" htmlFor="edit-status">
             <Select
@@ -321,8 +336,12 @@ export default function CampaignDetail() {
 
           {!isPlayerView && (
             <FormField label="DM Notes" htmlFor="edit-dm-notes" hint="Visible to DMs only">
-              <Textarea
+              <AITextarea
                 id="edit-dm-notes"
+                campaignId={id!}
+                entityType="campaign"
+                fieldName="dm_notes"
+                entityDraft={{ name, system, description, status }}
                 value={dmNotes}
                 onChange={(e) => setDmNotes(e.target.value)}
                 rows={4}
