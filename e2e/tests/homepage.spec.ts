@@ -12,5 +12,5 @@ test('page title is Tabletop Companion', async ({ page }) => {
 
 test('sidebar brand is visible', async ({ page }) => {
   await page.goto('/campaigns');
-  await expect(page.getByText('Tabletop Companion')).toBeVisible();
+  await expect(page.getByAltText('Tabletop Companion').first()).toBeVisible();
 });
