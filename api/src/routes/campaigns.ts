@@ -9,6 +9,8 @@ import {
   CampaignMember,
   CampaignMembersResponse,
   CampaignMemberResponse,
+  CampaignInvitationResponse,
+  CampaignPendingInvitationsResponse,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabaseService, getUserByEmail } from '../lib/supabaseService.js';
@@ -255,6 +257,8 @@ campaignsRouter.get('/campaigns/:id/members', async (req, res) => {
 });
 
 // ─── POST /campaigns/:id/members ─────────────────────────────────────────────
+// Creates a pending invitation rather than adding directly to the campaign.
+// The invited user will see it in their list and can accept or decline.
 
 campaignsRouter.post('/campaigns/:id/members', async (req, res) => {
   try {
@@ -274,27 +278,71 @@ campaignsRouter.post('/campaigns/:id/members', async (req, res) => {
     if (!found) throw new NotFoundError('user_not_found');
 
     // Check for existing membership
-    const { data: existing } = await supabaseService
+    const { data: existingMember } = await supabaseService
       .from('campaign_members')
       .select('user_id')
       .eq('campaign_id', id)
       .eq('user_id', found.id)
       .maybeSingle();
 
-    if (existing) {
+    if (existingMember) {
       res.status(409).json({ error: 'already_member' });
       return;
     }
 
-    const { data: member, error: insertError } = await supabaseService
-      .from('campaign_members')
-      .insert({ campaign_id: id, user_id: found.id, role: 'player' })
+    // Check for existing pending invitation
+    const { data: existingInvite } = await supabaseService
+      .from('campaign_invitations')
+      .select('id')
+      .eq('campaign_id', id)
+      .eq('invited_user_id', found.id)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (existingInvite) {
+      res.status(409).json({ error: 'already_invited' });
+      return;
+    }
+
+    const { data: invitation, error: insertError } = await supabaseService
+      .from('campaign_invitations')
+      .insert({
+        campaign_id: id,
+        invited_user_id: found.id,
+        invited_by_user_id: userId,
+      })
       .select('*')
       .single();
 
-    if (insertError || !member) throw new HttpError(500, 'database error');
+    if (insertError || !invitation) throw new HttpError(500, 'database error');
 
-    res.status(201).json(CampaignMemberResponse.parse({ member }));
+    res.status(201).json(CampaignInvitationResponse.parse({ invitation }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// ─── GET /campaigns/:id/invitations ──────────────────────────────────────────
+// DM-only: list pending invitations for a campaign.
+
+campaignsRouter.get('/campaigns/:id/invitations', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    const role = await getCampaignRole(userId, id);
+    if (!role) throw new NotFoundError();
+    if (role !== 'dm') throw new ForbiddenError();
+
+    const { data, error } = await supabaseService
+      .from('campaign_invitations')
+      .select('*')
+      .eq('campaign_id', id)
+      .eq('status', 'pending');
+
+    if (error) throw new HttpError(500, 'database error');
+
+    res.json(CampaignPendingInvitationsResponse.parse({ invitations: data ?? [] }));
   } catch (err) {
     sendError(res, err);
   }

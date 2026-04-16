@@ -6,7 +6,8 @@ import {
   updateCampaign,
   deleteCampaign,
   fetchCampaignMembers,
-  addCampaignMember,
+  fetchCampaignInvitations,
+  inviteCampaignMember,
   removeCampaignMember,
 } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
@@ -233,6 +234,7 @@ function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolea
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
@@ -240,19 +242,32 @@ function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolea
     queryFn: () => fetchCampaignMembers(campaignId),
   });
 
-  const addMutation = useMutation({
-    mutationFn: (email: string) => addCampaignMember(campaignId, email),
+  const { data: invitationsData } = useQuery({
+    queryKey: ['campaign', campaignId, 'invitations'],
+    queryFn: () => fetchCampaignInvitations(campaignId),
+    enabled: isDm,
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: (email: string) => inviteCampaignMember(campaignId, email),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'members'] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'invitations'] });
       setInviteEmail('');
       setInviteError(null);
+      setInviteSuccess(true);
+      setTimeout(() => setInviteSuccess(false), 3000);
     },
     onError: (err: Error) => {
-      setInviteError(err.message === 'user_not_found'
-        ? 'No account found with that email.'
-        : err.message === 'already_member'
-          ? 'This person is already a member.'
-          : 'Failed to add member. Please try again.');
+      setInviteSuccess(false);
+      setInviteError(
+        err.message === 'user_not_found'
+          ? 'No account found with that email.'
+          : err.message === 'already_member'
+            ? 'This person is already a member.'
+            : err.message === 'already_invited'
+              ? 'An invitation has already been sent to this person.'
+              : 'Failed to send invitation. Please try again.',
+      );
     },
   });
 
@@ -266,7 +281,8 @@ function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolea
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setInviteError(null);
-    addMutation.mutate(inviteEmail);
+    setInviteSuccess(false);
+    inviteMutation.mutate(inviteEmail);
   }
 
   return (
@@ -305,6 +321,25 @@ function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolea
         </ul>
       )}
 
+      {isDm && invitationsData && invitationsData.invitations.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">
+            Pending Invitations
+          </p>
+          <ul className="space-y-1.5">
+            {invitationsData.invitations.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2"
+              >
+                <span className="text-sm font-mono text-slate-400">{inv.invited_user_id}</span>
+                <span className="ml-auto text-xs text-amber-400/70">Pending</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {isDm && (
         <form onSubmit={handleInvite} className="flex flex-col gap-2 max-w-md">
           <div className="flex gap-2">
@@ -316,13 +351,18 @@ function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolea
               required
               error={!!inviteError}
             />
-            <Button type="submit" isLoading={addMutation.isPending} className="shrink-0">
+            <Button type="submit" isLoading={inviteMutation.isPending} className="shrink-0">
               Invite
             </Button>
           </div>
           {inviteError && (
             <p role="alert" className="text-sm text-red-400">
               {inviteError}
+            </p>
+          )}
+          {inviteSuccess && (
+            <p role="status" className="text-sm text-green-400">
+              Invitation sent.
             </p>
           )}
         </form>
