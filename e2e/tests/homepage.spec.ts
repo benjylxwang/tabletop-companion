@@ -12,5 +12,6 @@ test('page title is Tabletop Companion', async ({ page }) => {
 
 test('sidebar brand is visible', async ({ page }) => {
   await page.goto('/campaigns');
-  await expect(page.getByText('Tabletop Companion')).toBeVisible();
+  // Brand is two SVG images (icon + wordmark), both with alt="Tabletop Companion"
+  await expect(page.getByRole('img', { name: 'Tabletop Companion' }).first()).toBeVisible();
 });

@@ -5,7 +5,7 @@ export type ViewMode = z.infer<typeof ViewMode>;
 
 export const HealthResponse = z.object({
   status: z.literal('ok'),
-  timestamp: z.string().datetime(),
+  timestamp: z.string().datetime({ offset: true }),
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
@@ -56,7 +56,7 @@ export const Campaign = z.object({
   description: z.string().optional(),
   cover_image_url: z.string().optional(),
   status: CampaignStatusEnum,
-  created_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
 export type Campaign = z.infer<typeof Campaign>;
@@ -85,7 +85,7 @@ export const CampaignMember = z.object({
   campaign_id: z.string(),
   user_id: z.string(),
   role: RoleEnum,
-  joined_at: z.string().datetime(),
+  joined_at: z.string().datetime({ offset: true }),
 });
 export type CampaignMember = z.infer<typeof CampaignMember>;
 
@@ -115,7 +115,7 @@ export const Session = z.object({
   summary: z.string().optional(),
   highlights: z.array(z.string()).optional(),
   xp_awarded: z.number().int().optional(),
-  created_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
 export type Session = z.infer<typeof Session>;
@@ -141,18 +141,18 @@ export const Character = z.object({
   id: z.string(),
   campaign_id: z.string(),
   name: z.string(),
-  player_name: z.string(),
-  race: z.string().optional(),
-  'class': z.string().optional(),
-  level: z.number().int().optional(),
-  backstory: z.string().optional(),
-  appearance: z.string().optional(),
-  personality: z.string().optional(),
-  goals_bonds: z.string().optional(),
-  character_sheet_url: z.string().optional(),
-  journal: z.string().optional(),
-  created_at: z.string().datetime(),
-  dm_notes: z.string().optional(),
+  player_name: z.string().nullish(),
+  race_species: z.string().nullish(),
+  'class': z.string().nullish(),
+  level_tier: z.number().int().nullish(),
+  backstory: z.string().nullish(),
+  appearance: z.string().nullish(),
+  personality: z.string().nullish(),
+  goals_bonds: z.string().nullish(),
+  character_sheet_url: z.string().nullish(),
+  journal: z.string().nullish(),
+  created_at: z.string().datetime({ offset: true }),
+  dm_notes: z.string().nullish(),
 });
 export type Character = z.infer<typeof Character>;
 
@@ -185,7 +185,7 @@ export const Npc = z.object({
   status: NpcStatusEnum,
   first_appeared_session_id: z.string().optional(),
   faction_id: z.string().optional(),
-  created_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
 export type Npc = z.infer<typeof Npc>;
@@ -222,7 +222,7 @@ export const Location = z.object({
   history: z.string().optional(),
   map_image_url: z.string().optional(),
   parent_location_id: z.string().optional(),
-  created_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
 export type Location = z.infer<typeof Location>;
@@ -230,10 +230,27 @@ export type Location = z.infer<typeof Location>;
 export const LocationPlayer = Location.omit({ dm_notes: true });
 export type LocationPlayer = z.infer<typeof LocationPlayer>;
 
-export const LocationCreate = Location.omit({ id: true, created_at: true });
+// campaign_id is omitted — the URL supplies it, and the server won't trust a
+// client-sent value for placement.
+export const LocationCreate = Location.omit({
+  id: true,
+  created_at: true,
+  campaign_id: true,
+});
 export type LocationCreate = z.infer<typeof LocationCreate>;
 
-export const LocationUpdate = LocationCreate.partial();
+// Optional fields use `.nullish()` so a client can send `null` to explicitly
+// clear a field (PATCH-style partial updates drop `undefined`, so `null` is
+// the only way to tell the server "set this column to NULL").
+export const LocationUpdate = z.object({
+  name: z.string().optional(),
+  type: z.string().nullish(),
+  description: z.string().nullish(),
+  history: z.string().nullish(),
+  map_image_url: z.string().nullish(),
+  parent_location_id: z.string().nullish(),
+  dm_notes: z.string().nullish(),
+});
 export type LocationUpdate = z.infer<typeof LocationUpdate>;
 
 export const LocationsResponse = z.object({ locations: z.array(Location) });
@@ -251,7 +268,7 @@ export const Faction = z.object({
   description: z.string().optional(),
   goals: z.string().optional(),
   alignment_tone: z.string().optional(),
-  created_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
 export type Faction = z.infer<typeof Faction>;
@@ -280,7 +297,7 @@ export const Lore = z.object({
   category: LoreCategoryEnum,
   content: z.string(),
   visibility: LoreVisibilityEnum,
-  created_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
 export type Lore = z.infer<typeof Lore>;
