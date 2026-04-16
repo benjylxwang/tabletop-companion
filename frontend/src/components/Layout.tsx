@@ -118,22 +118,37 @@ export default function Layout() {
         aria-label="Main navigation"
       >
         {/* Brand */}
-        <div className="flex h-14 items-center justify-between border-b border-[#3d2a10] px-3">
-          <div className="flex items-center min-w-0">
+        <div className="flex h-14 items-center border-b border-[#3d2a10] px-3">
+          {collapsed ? (
+            <button
+              onClick={toggleCollapse}
+              aria-expanded={false}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              className="flex shrink-0 items-center justify-center rounded-md transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
+            >
+              <img src={logoIcon} alt="Tabletop Companion" className="h-[18px] w-[18px]" />
+            </button>
+          ) : (
             <img src={logoIcon} alt="Tabletop Companion" className="h-8 w-8 shrink-0" />
-            {!collapsed && (
-              <img src={logoWordmark} alt="Tabletop Companion" className="ml-3 h-5" />
-            )}
-          </div>
-          <button
-            onClick={toggleCollapse}
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="flex shrink-0 items-center justify-center rounded-md p-1 text-[#b8860b] transition-colors hover:bg-[#2a1a0a] hover:text-[#f5f0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
+          )}
+          {!collapsed && (
+            <>
+              <img src={logoWordmark} alt="Tabletop Companion" className="ml-3 h-5 min-w-0" />
+              <div className="flex-1" />
+            </>
+          )}
+          {!collapsed && (
+            <button
+              onClick={toggleCollapse}
+              aria-expanded={!collapsed}
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+              className="flex shrink-0 items-center justify-center rounded-md p-1 text-[#b8860b] transition-colors hover:bg-[#2a1a0a] hover:text-[#f5f0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
         </div>
 
         {/* Nav */}
