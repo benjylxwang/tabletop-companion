@@ -104,6 +104,40 @@ export type CampaignMembersResponse = z.infer<typeof CampaignMembersResponse>;
 export const CampaignMemberResponse = z.object({ member: CampaignMember });
 export type CampaignMemberResponse = z.infer<typeof CampaignMemberResponse>;
 
+// ─── CampaignInvitation ───────────────────────────────────────────────────────
+
+export const InvitationStatusEnum = z.enum(['pending', 'accepted', 'declined']);
+export type InvitationStatusEnum = z.infer<typeof InvitationStatusEnum>;
+
+export const CampaignInvitation = z.object({
+  id: z.string(),
+  campaign_id: z.string(),
+  invited_user_id: z.string(),
+  invited_by_user_id: z.string(),
+  status: InvitationStatusEnum,
+  created_at: z.string().datetime({ offset: true }),
+});
+export type CampaignInvitation = z.infer<typeof CampaignInvitation>;
+
+// Includes campaign info for the invitee's list view
+export const CampaignInvitationWithCampaign = CampaignInvitation.extend({
+  campaign_name: z.string(),
+  campaign_system: z.string().optional(),
+  campaign_status: CampaignStatusEnum,
+});
+export type CampaignInvitationWithCampaign = z.infer<typeof CampaignInvitationWithCampaign>;
+
+export const CampaignInvitationResponse = z.object({ invitation: CampaignInvitation });
+export type CampaignInvitationResponse = z.infer<typeof CampaignInvitationResponse>;
+
+// For the invitee: pending invitations with campaign details
+export const CampaignInvitationsResponse = z.object({ invitations: z.array(CampaignInvitationWithCampaign) });
+export type CampaignInvitationsResponse = z.infer<typeof CampaignInvitationsResponse>;
+
+// For the DM: pending invitations for a specific campaign (no campaign details needed)
+export const CampaignPendingInvitationsResponse = z.object({ invitations: z.array(CampaignInvitation) });
+export type CampaignPendingInvitationsResponse = z.infer<typeof CampaignPendingInvitationsResponse>;
+
 // ─── Session ─────────────────────────────────────────────────────────────────
 
 export const Session = z.object({

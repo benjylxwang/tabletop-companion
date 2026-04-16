@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCampaigns, createCampaign } from '../../lib/api';
+import { fetchCampaigns, createCampaign, fetchMyInvitations, acceptInvitation, declineInvitation } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
   Button,
@@ -105,6 +105,70 @@ function CreateCampaignModal({ open, onClose }: { open: boolean; onClose: () => 
   );
 }
 
+function PendingInvitations() {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['invitations'],
+    queryFn: fetchMyInvitations,
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) => acceptInvitation(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['invitations'] });
+      void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+  });
+
+  const declineMutation = useMutation({
+    mutationFn: (id: string) => declineInvitation(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['invitations'] });
+    },
+  });
+
+  if (isLoading || !data || data.invitations.length === 0) return null;
+
+  return (
+    <div className="mb-8 max-w-2xl">
+      <h2 className="text-base font-semibold text-slate-300 mb-3">Pending Invitations</h2>
+      <ul className="space-y-2">
+        {data.invitations.map((inv) => (
+          <li
+            key={inv.id}
+            className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-slate-900 px-5 py-4"
+          >
+            <div>
+              <p className="font-semibold text-slate-100">{inv.campaign_name}</p>
+              <p className="text-sm text-slate-400 mt-0.5">
+                {inv.campaign_system && `${inv.campaign_system} · `}{inv.campaign_status}
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0 ml-4">
+              <Button
+                size="sm"
+                onClick={() => acceptMutation.mutate(inv.id)}
+                isLoading={acceptMutation.isPending && acceptMutation.variables === inv.id}
+              >
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => declineMutation.mutate(inv.id)}
+                isLoading={declineMutation.isPending && declineMutation.variables === inv.id}
+              >
+                Decline
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function CampaignList() {
   const { viewMode } = useViewMode();
   const [showCreate, setShowCreate] = useState(false);
@@ -123,6 +187,8 @@ export default function CampaignList() {
         </div>
         <Button onClick={() => setShowCreate(true)}>New Campaign</Button>
       </div>
+
+      <PendingInvitations />
 
       {isLoading && <p className="text-slate-400">Loading…</p>}
       {error && <ErrorDisplay message="Failed to load campaigns." />}

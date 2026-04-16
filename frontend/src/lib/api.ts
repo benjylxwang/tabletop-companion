@@ -1,8 +1,10 @@
 import {
   CampaignCreate,
   CampaignUpdate,
-  CampaignMemberResponse,
+  CampaignInvitationResponse,
+  CampaignInvitationsResponse,
   CampaignMembersResponse,
+  CampaignPendingInvitationsResponse,
   CampaignResponse,
   CampaignsResponse,
   GenerateCampaignResponse,
@@ -98,7 +100,7 @@ export async function fetchCampaignMembers(id: string): Promise<CampaignMembersR
   return CampaignMembersResponse.parse(await res.json());
 }
 
-export async function addCampaignMember(id: string, email: string): Promise<CampaignMemberResponse> {
+export async function inviteCampaignMember(id: string, email: string): Promise<CampaignInvitationResponse> {
   const res = await authedFetch(`/api/campaigns/${id}/members`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -106,9 +108,9 @@ export async function addCampaignMember(id: string, email: string): Promise<Camp
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `add member ${res.status}`);
+    throw new Error(body.error ?? `invite member ${res.status}`);
   }
-  return CampaignMemberResponse.parse(await res.json());
+  return CampaignInvitationResponse.parse(await res.json());
 }
 
 export async function removeCampaignMember(campaignId: string, userId: string): Promise<void> {
@@ -313,4 +315,26 @@ export async function generateFieldAi(
     throw new Error(body.error ?? `generate field ${res.status}`);
   }
   return GenerateFieldResponse.parse(await res.json());
+}
+
+export async function fetchCampaignInvitations(campaignId: string): Promise<CampaignPendingInvitationsResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/invitations`);
+  if (!res.ok) throw new Error(`campaign invitations ${res.status}`);
+  return CampaignPendingInvitationsResponse.parse(await res.json());
+}
+
+export async function fetchMyInvitations(): Promise<CampaignInvitationsResponse> {
+  const res = await authedFetch('/api/invitations');
+  if (!res.ok) throw new Error(`invitations ${res.status}`);
+  return CampaignInvitationsResponse.parse(await res.json());
+}
+
+export async function acceptInvitation(id: string): Promise<void> {
+  const res = await authedFetch(`/api/invitations/${id}/accept`, { method: 'POST' });
+  if (!res.ok) throw new Error(`accept invitation ${res.status}`);
+}
+
+export async function declineInvitation(id: string): Promise<void> {
+  const res = await authedFetch(`/api/invitations/${id}/decline`, { method: 'POST' });
+  if (!res.ok) throw new Error(`decline invitation ${res.status}`);
 }
