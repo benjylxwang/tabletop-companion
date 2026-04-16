@@ -15,7 +15,8 @@ import {
   ErrorDisplay,
 } from '../../components';
 import { EntityAvatar } from '../../components/ui/EntityAvatar';
-import type { LoreCategoryEnum, LoreVisibilityEnum, LoreCreate } from '@tabletop/shared';
+import type { LoreCategoryEnum, LoreVisibilityEnum, LoreCreate, LoreListResponse } from '@tabletop/shared';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 // ─── Option lists ─────────────────────────────────────────────────────────────
 
@@ -90,14 +91,39 @@ function CreateLoreModal({
 
   const mutation = useMutation({
     mutationFn: (data: LoreCreate) => createLore(campaignId, data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['lores', campaignId] });
+      const previous = queryClient.getQueryData<LoreListResponse>(['lores', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LoreListResponse>(['lores', campaignId, viewMode], {
+          ...previous,
+          lore: [
+            ...previous.lore,
+            {
+              ...draft,
+              id: crypto.randomUUID(),
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
       onClose();
       setTitle('');
       setCategory('History');
       setContent('');
       setVisibility('Public');
       setDmNotes('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['lores', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
     },
   });
 
@@ -246,7 +272,13 @@ export default function LoreList() {
         {isDm && <Button onClick={() => setShowCreate(true)}>New Lore Entry</Button>}
       </div>
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </ul>
+      )}
       {error && <ErrorDisplay message="Failed to load lore entries." />}
 
       {data && data.lore.length === 0 && (

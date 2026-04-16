@@ -655,3 +655,23 @@ export const GenerateImageResponse = z.object({
   expires_at: z.string(),
 });
 export type GenerateImageResponse = z.infer<typeof GenerateImageResponse>;
+
+// ─── API Error Response ───────────────────────────────────────────────────────
+
+export const ApiErrorCode = z.enum([
+  'VALIDATION_ERROR',
+  'NOT_FOUND',
+  'FORBIDDEN',
+  'INTERNAL_ERROR',
+  'HTTP_ERROR',
+]);
+export type ApiErrorCode = z.infer<typeof ApiErrorCode>;
+
+export const ApiErrorResponse = z.object({
+  error: z.object({
+    code: ApiErrorCode,
+    message: z.string(),
+    details: z.unknown().optional(),
+  }),
+});
+export type ApiErrorResponse = z.infer<typeof ApiErrorResponse>;

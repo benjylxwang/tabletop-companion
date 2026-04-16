@@ -328,8 +328,11 @@ describe('characters — create', () => {
     const res = makeRes();
     await handlers.create(req, res);
     expect(res._status).toHaveBeenCalledWith(400);
-    const body = res._json.mock.calls[0]?.[0] as { error: string };
-    expect(body.error).toBe('invalid body');
+    const body = res._json.mock.calls[0]?.[0] as {
+      error: { code: string; message: string };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('invalid body');
   });
 
   it('forces campaign_id from URL, ignoring client-supplied value', async () => {

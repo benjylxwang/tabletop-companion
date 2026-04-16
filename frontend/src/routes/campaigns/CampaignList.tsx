@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BookOpen } from 'lucide-react';
 import { fetchCampaigns, createCampaign, fetchMyInvitations, acceptInvitation, declineInvitation } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import {
   Button,
@@ -15,7 +16,7 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
-import type { CampaignCreate, CampaignStatusEnum, CampaignWithRole } from '@tabletop/shared';
+import type { CampaignCreate, CampaignStatusEnum, CampaignWithRole, CampaignsResponse } from '@tabletop/shared';
 
 const STATUS_OPTIONS: { value: CampaignStatusEnum; label: string }[] = [
   { value: 'Active', label: 'Active' },
@@ -30,15 +31,41 @@ function CreateCampaignModal({ open, onClose }: { open: boolean; onClose: () => 
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<CampaignStatusEnum>('Active');
 
+  const { viewMode } = useViewMode();
+
   const mutation = useMutation({
     mutationFn: (data: CampaignCreate) => createCampaign(data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['campaigns'] });
+      const previous = queryClient.getQueryData<CampaignsResponse>(['campaigns', viewMode]);
+      if (previous) {
+        const optimistic: CampaignWithRole = {
+          ...draft,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+          my_role: 'dm',
+        };
+        queryClient.setQueryData<CampaignsResponse>(['campaigns', viewMode], {
+          ...previous,
+          campaigns: [...previous.campaigns, optimistic],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
       onClose();
       setName('');
       setSystem('');
       setDescription('');
       setStatus('Active');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['campaigns', viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
     },
   });
 
@@ -234,7 +261,13 @@ export default function CampaignList() {
 
       <PendingInvitations />
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-48 w-full rounded-xl" />
+          ))}
+        </div>
+      )}
       {error && <ErrorDisplay message="Failed to load campaigns." />}
 
       {data && data.campaigns.length === 0 && (

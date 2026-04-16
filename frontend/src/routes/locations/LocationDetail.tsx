@@ -9,6 +9,7 @@ import {
   updateLocation,
   uploadFile,
 } from '../../lib/api';
+import type { LocationWithHierarchyResponse, LocationsResponse } from '@tabletop/shared';
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
@@ -100,18 +101,63 @@ export default function LocationDetail() {
         parent_location_id: parentId === '' ? null : parentId,
         dm_notes: dmNotes === '' ? null : dmNotes,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['location', campaignId, locationId, viewMode], updated);
-      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['location', campaignId, locationId, viewMode] });
+      const previous = queryClient.getQueryData<LocationWithHierarchyResponse>(['location', campaignId, locationId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LocationWithHierarchyResponse>(['location', campaignId, locationId, viewMode], {
+          ...previous,
+          location: {
+            ...previous.location,
+            name,
+            type: type === '' ? undefined : type,
+            description: description === '' ? undefined : description,
+            history: history === '' ? undefined : history,
+            map_image_url: mapPath ?? undefined,
+            parent_location_id: parentId === '' ? undefined : parentId,
+            dm_notes: dmNotes === '' ? undefined : dmNotes,
+          },
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['location', campaignId, locationId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['location', campaignId, locationId] });
+      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteLocation(campaignId!, locationId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['locations', campaignId] });
+      const previous = queryClient.getQueryData<LocationsResponse>(['locations', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LocationsResponse>(['locations', campaignId, viewMode], {
+          ...previous,
+          locations: previous.locations.filter((l) => l.id !== locationId),
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
       navigate(`/campaigns/${campaignId}/locations`);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['locations', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
     },
   });
 

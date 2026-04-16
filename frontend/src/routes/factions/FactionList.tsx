@@ -15,7 +15,8 @@ import {
   ErrorDisplay,
 } from '../../components';
 import { EntityAvatar } from '../../components/ui/EntityAvatar';
-import type { FactionCreate } from '@tabletop/shared';
+import type { FactionCreate, FactionsResponse } from '@tabletop/shared';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 function CreateFactionModal({
   campaignId,
@@ -39,14 +40,39 @@ function CreateFactionModal({
 
   const mutation = useMutation({
     mutationFn: (data: FactionCreate) => createFaction(campaignId, data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['factions', campaignId] });
+      const previous = queryClient.getQueryData<FactionsResponse>(['factions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<FactionsResponse>(['factions', campaignId, viewMode], {
+          ...previous,
+          factions: [
+            ...previous.factions,
+            {
+              ...draft,
+              id: crypto.randomUUID(),
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
       onClose();
       setName('');
       setDescription('');
       setGoals('');
       setAlignmentTone('');
       setDmNotes('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['factions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
     },
   });
 
@@ -199,7 +225,13 @@ export default function FactionList() {
         )}
       </div>
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </ul>
+      )}
       {error && <ErrorDisplay message="Failed to load factions." />}
 
       {data && data.factions.length === 0 && (

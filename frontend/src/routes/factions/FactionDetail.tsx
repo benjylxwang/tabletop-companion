@@ -33,6 +33,9 @@ import type {
   FactionRelationshipTypeEnum,
   AddFactionMember,
   AddFactionRelationship,
+  FactionWithRefsResponse,
+  FactionsResponse,
+  NpcsResponse,
 } from '@tabletop/shared';
 
 // ─── Relationship badge ───────────────────────────────────────────────────────
@@ -112,22 +115,63 @@ function MembersSection({
   const addMutation = useMutation({
     mutationFn: (data: AddFactionMember) =>
       addFactionMember(campaignId, factionId, data),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['faction', campaignId, factionId, viewMode] });
+      const previous = queryClient.getQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode]);
+      if (previous) {
+        const npcName =
+          queryClient.getQueryData<NpcsResponse>(['npcs', campaignId, viewMode])?.npcs.find((n) => n.id === data.npc_id)?.name ?? 'Unknown';
+        queryClient.setQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode], {
+          ...previous,
+          faction: {
+            ...previous.faction,
+            members: [
+              ...previous.faction.members,
+              { npc_id: data.npc_id, npc_name: npcName, role: data.role ?? null },
+            ],
+          },
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['faction', campaignId, factionId],
-      });
       setSelectedNpcId('');
       setMemberRole('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['faction', campaignId, factionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['faction', campaignId, factionId] });
     },
   });
 
   const removeMutation = useMutation({
     mutationFn: (npcId: string) =>
       removeFactionMember(campaignId, factionId, npcId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['faction', campaignId, factionId],
-      });
+    onMutate: async (npcId) => {
+      await queryClient.cancelQueries({ queryKey: ['faction', campaignId, factionId, viewMode] });
+      const previous = queryClient.getQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode], {
+          ...previous,
+          faction: {
+            ...previous.faction,
+            members: previous.faction.members.filter((m) => m.npc_id !== npcId),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['faction', campaignId, factionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['faction', campaignId, factionId] });
     },
   });
 
@@ -262,22 +306,67 @@ function RelationshipsSection({
   const addMutation = useMutation({
     mutationFn: (data: AddFactionRelationship) =>
       addFactionRelationship(campaignId, factionId, data),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['faction', campaignId, factionId, viewMode] });
+      const previous = queryClient.getQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode]);
+      if (previous) {
+        const relatedFactionName =
+          queryClient.getQueryData<FactionsResponse>(['factions', campaignId, viewMode])?.factions.find((f) => f.id === data.related_faction_id)?.name ?? 'Unknown';
+        queryClient.setQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode], {
+          ...previous,
+          faction: {
+            ...previous.faction,
+            relationships: [
+              ...previous.faction.relationships,
+              {
+                related_faction_id: data.related_faction_id,
+                related_faction_name: relatedFactionName,
+                relationship_type: data.relationship_type,
+              },
+            ],
+          },
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['faction', campaignId, factionId],
-      });
       setSelectedFactionId('');
       setRelationshipType('unknown');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['faction', campaignId, factionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['faction', campaignId, factionId] });
     },
   });
 
   const removeMutation = useMutation({
     mutationFn: (relatedFactionId: string) =>
       removeFactionRelationship(campaignId, factionId, relatedFactionId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['faction', campaignId, factionId],
-      });
+    onMutate: async (relatedFactionId) => {
+      await queryClient.cancelQueries({ queryKey: ['faction', campaignId, factionId, viewMode] });
+      const previous = queryClient.getQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode], {
+          ...previous,
+          faction: {
+            ...previous.faction,
+            relationships: previous.faction.relationships.filter((r) => r.related_faction_id !== relatedFactionId),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['faction', campaignId, factionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['faction', campaignId, factionId] });
     },
   });
 
@@ -426,24 +515,61 @@ export default function FactionDetail() {
         alignment_tone: alignmentTone || undefined,
         dm_notes: dmNotes || undefined,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(
-        ['faction', campaignId, factionId, viewMode],
-        // merge updated scalar fields onto the existing refs data
-        data
-          ? { faction: { ...data.faction, ...updated.faction } }
-          : updated,
-      );
-      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['faction', campaignId, factionId, viewMode] });
+      const previous = queryClient.getQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<FactionWithRefsResponse>(['faction', campaignId, factionId, viewMode], {
+          ...previous,
+          faction: {
+            ...previous.faction,
+            name,
+            description: description || undefined,
+            goals: goals || undefined,
+            alignment_tone: alignmentTone || undefined,
+            dm_notes: dmNotes || undefined,
+          },
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['faction', campaignId, factionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['faction', campaignId, factionId] });
+      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteFaction(campaignId!, factionId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['factions', campaignId] });
+      const previous = queryClient.getQueryData<FactionsResponse>(['factions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<FactionsResponse>(['factions', campaignId, viewMode], {
+          ...previous,
+          factions: previous.factions.filter((f) => f.id !== factionId),
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
       navigate(`/campaigns/${campaignId}/factions`);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['factions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
     },
   });
 

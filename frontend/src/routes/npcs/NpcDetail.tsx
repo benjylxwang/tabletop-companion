@@ -24,7 +24,7 @@ import {
   Spinner,
   ErrorDisplay,
 } from '../../components';
-import type { NpcStatusEnum, NpcWithRefsResponse } from '@tabletop/shared';
+import type { NpcStatusEnum, NpcWithRefsResponse, NpcsResponse } from '@tabletop/shared';
 import { StatusBadge } from './NpcList';
 
 const STATUS_OPTIONS: { value: NpcStatusEnum; label: string }[] = [
@@ -124,18 +124,67 @@ export default function NpcDetail() {
         first_appeared_session_id: firstAppearedSessionId || undefined,
         portrait_url: portraitPath ?? undefined,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['npc', campaignId, npcId, viewMode], updated);
-      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['npc', campaignId, npcId, viewMode] });
+      const previous = queryClient.getQueryData<NpcWithRefsResponse>(['npc', campaignId, npcId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<NpcWithRefsResponse>(['npc', campaignId, npcId, viewMode], {
+          ...previous,
+          npc: {
+            ...previous.npc,
+            name,
+            role_title: roleTitle || undefined,
+            alignment: alignment || undefined,
+            appearance: appearance || undefined,
+            personality: personality || undefined,
+            relationships: relationships || undefined,
+            status,
+            dm_notes: dmNotes || undefined,
+            faction_id: factionId || undefined,
+            first_appeared_session_id: firstAppearedSessionId || undefined,
+            portrait_url: portraitPath ?? undefined,
+          },
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['npc', campaignId, npcId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['npc', campaignId, npcId] });
+      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteNpc(campaignId!, npcId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['npcs', campaignId] });
+      const previous = queryClient.getQueryData<NpcsResponse>(['npcs', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<NpcsResponse>(['npcs', campaignId, viewMode], {
+          ...previous,
+          npcs: previous.npcs.filter((n) => n.id !== npcId),
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
       navigate(`/campaigns/${campaignId}/npcs`);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['npcs', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
     },
   });
 

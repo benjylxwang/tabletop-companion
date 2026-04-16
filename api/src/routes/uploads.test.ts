@@ -64,7 +64,7 @@ describe('POST /api/uploads', () => {
       });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('unsupported_mime_type');
+    expect(res.body.error.message).toBe('unsupported_mime_type');
     expect(mockUpload).not.toHaveBeenCalled();
   });
 
@@ -109,7 +109,7 @@ describe('POST /api/uploads', () => {
       .attach('file', PNG_BYTES, { filename: 'map.png', contentType: 'image/png' });
 
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe('storage_upload_failed');
+    expect(res.body.error.message).toBe('storage_upload_failed');
   });
 
   it('returns 400 when no file is attached', async () => {
@@ -117,7 +117,7 @@ describe('POST /api/uploads', () => {
     const res = await request(app).post('/api/uploads');
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('missing_file');
+    expect(res.body.error.message).toBe('missing_file');
   });
 });
 
@@ -157,6 +157,6 @@ describe('POST /api/uploads/sign', () => {
       .send({ path: 'user-1/abc.png' });
 
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe('signed_url_failed');
+    expect(res.body.error.message).toBe('signed_url_failed');
   });
 });

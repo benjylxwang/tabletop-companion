@@ -14,7 +14,8 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
-import type { SessionCreate } from '@tabletop/shared';
+import type { SessionCreate, SessionsResponse } from '@tabletop/shared';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 function CreateSessionModal({
   campaignId,
@@ -38,14 +39,39 @@ function CreateSessionModal({
 
   const mutation = useMutation({
     mutationFn: (data: SessionCreate) => createSession(campaignId, data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['sessions', campaignId] });
+      const previous = queryClient.getQueryData<SessionsResponse>(['sessions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<SessionsResponse>(['sessions', campaignId, viewMode], {
+          ...previous,
+          sessions: [
+            ...previous.sessions,
+            {
+              ...draft,
+              id: crypto.randomUUID(),
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
       onClose();
       setTitle('');
       setSessionNumber('');
       setDatePlayed('');
       setSummary('');
       setDmNotes('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['sessions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
     },
   });
 
@@ -194,7 +220,13 @@ export default function SessionList() {
         {isDm && <Button onClick={() => setShowCreate(true)}>New Session</Button>}
       </div>
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && (
+        <ul className="space-y-2 max-w-3xl">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </ul>
+      )}
       {error && <ErrorDisplay message="Failed to load sessions." />}
 
       {data && data.sessions.length === 0 && (

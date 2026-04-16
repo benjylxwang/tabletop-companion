@@ -16,7 +16,8 @@ import {
   ErrorDisplay,
 } from '../../components';
 import { EntityAvatar } from '../../components/ui/EntityAvatar';
-import type { NpcCreate, NpcStatusEnum } from '@tabletop/shared';
+import type { NpcCreate, NpcStatusEnum, NpcsResponse } from '@tabletop/shared';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 const STATUS_OPTIONS: { value: NpcStatusEnum; label: string }[] = [
   { value: 'Alive', label: 'Alive' },
@@ -65,8 +66,26 @@ function CreateNpcModal({
 
   const mutation = useMutation({
     mutationFn: (data: NpcCreate) => createNpc(campaignId, data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['npcs', campaignId] });
+      const previous = queryClient.getQueryData<NpcsResponse>(['npcs', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<NpcsResponse>(['npcs', campaignId, viewMode], {
+          ...previous,
+          npcs: [
+            ...previous.npcs,
+            {
+              ...draft,
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
       onClose();
       setName('');
       setRoleTitle('');
@@ -76,6 +95,14 @@ function CreateNpcModal({
       setRelationships('');
       setStatus('Alive');
       setDmNotes('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['npcs', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
     },
   });
 
@@ -267,7 +294,13 @@ export default function NpcList() {
         {isDm && <Button onClick={() => setShowCreate(true)}>New NPC</Button>}
       </div>
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </ul>
+      )}
       {error && <ErrorDisplay message="Failed to load NPCs." />}
 
       {data && data.npcs.length === 0 && (
