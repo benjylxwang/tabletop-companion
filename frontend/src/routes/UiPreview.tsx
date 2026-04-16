@@ -228,9 +228,10 @@ export function UiPreview() {
 
         {/* ── Color Palette ─────────────────────────────── */}
         <Section title="Color Palette">
+          <p className="text-xs font-medium text-ink-500 uppercase tracking-wide -mt-2">Base design tokens</p>
           {colorPalette.map((group) => (
             <div key={group.name} className="flex flex-col gap-1">
-              <p className="text-xs font-medium text-ink-500 capitalize">{group.name}</p>
+              <p className="text-xs font-medium text-ink-700 capitalize">{group.name}</p>
               <div className="flex gap-2 flex-wrap">
                 {group.shades.map((shade, i) => (
                   <div key={shade} className="flex flex-col items-center gap-1">
@@ -244,6 +245,39 @@ export function UiPreview() {
               </div>
             </div>
           ))}
+
+          <div className="border-t border-parchment-300 pt-4 mt-2">
+            <p className="text-xs font-medium text-ink-500 uppercase tracking-wide mb-3">Theme option palettes</p>
+            <div className="flex flex-col gap-4">
+              {themes.map((t) => (
+                <div key={t.id} className="flex flex-col gap-1">
+                  <p className="text-xs font-medium text-ink-700">
+                    {t.id} — {t.name}
+                    <span className="ml-2 text-ink-400 font-normal">{t.tag}</span>
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { label: 'page',    hex: t.pageBg },
+                      { label: 'surface', hex: t.sidebarBg },
+                      { label: 'border',  hex: t.border },
+                      { label: 'accent',  hex: t.accent },
+                      { label: 'muted',   hex: t.muted },
+                      { label: 'text',    hex: t.text },
+                    ].map(({ label, hex }) => (
+                      <div key={label} className="flex flex-col items-center gap-1">
+                        <div
+                          className="h-10 w-16 rounded border border-parchment-300"
+                          style={{ background: hex }}
+                          title={hex}
+                        />
+                        <span className="text-[10px] text-ink-300">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </Section>
 
         {/* ── Theme Options ─────────────────────────────── */}
