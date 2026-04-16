@@ -42,6 +42,164 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+const themes = [
+  {
+    id: 'A',
+    name: 'Arcane',
+    tag: 'Mystical · wizard-tower',
+    recommended: true,
+    pageBg: '#020617',      // slate-950
+    sidebarBg: '#0f172a',   // slate-900
+    border: '#1e293b',      // slate-800
+    accent: '#fbbf24',      // amber-400
+    accentTint: 'rgba(245,158,11,0.12)',
+    muted: '#94a3b8',       // slate-400
+    text: '#f1f5f9',        // slate-100
+  },
+  {
+    id: 'B',
+    name: 'Dark Fantasy',
+    tag: 'Brooding · gothic · dramatic',
+    recommended: false,
+    pageBg: '#09090b',      // zinc-950
+    sidebarBg: '#18181b',   // zinc-900
+    border: '#27272a',      // zinc-800
+    accent: '#ef4444',      // red-500
+    accentTint: 'rgba(220,38,38,0.12)',
+    muted: '#a1a1aa',       // zinc-400
+    text: '#f4f4f5',        // zinc-100
+  },
+  {
+    id: 'C',
+    name: 'Tavern Warmth',
+    tag: 'Cozy · candlelit · old-world',
+    recommended: false,
+    pageBg: '#0c0a09',      // stone-950
+    sidebarBg: '#1c1917',   // stone-900
+    border: '#44403c',      // stone-700
+    accent: '#fb923c',      // orange-400
+    accentTint: 'rgba(249,115,22,0.12)',
+    muted: '#a8a29e',       // stone-400
+    text: '#f5f5f4',        // stone-100
+  },
+  {
+    id: 'D',
+    name: 'Void & Violet',
+    tag: 'Eldritch · cosmic horror · sorcery',
+    recommended: false,
+    pageBg: '#0d0a14',
+    sidebarBg: '#1a0e2e',   // ~purple-950
+    border: '#2e1065',      // purple-950 border
+    accent: '#a78bfa',      // violet-400
+    accentTint: 'rgba(167,139,250,0.12)',
+    muted: '#c4b5fd',       // violet-300
+    text: '#ede9fe',        // violet-100
+  },
+  {
+    id: 'E',
+    name: 'Verdant',
+    tag: 'Ranger · druid · nature',
+    recommended: false,
+    pageBg: '#081510',
+    sidebarBg: '#052e16',   // green-950
+    border: '#14532d',      // green-900
+    accent: '#34d399',      // emerald-400
+    accentTint: 'rgba(52,211,153,0.12)',
+    muted: '#6ee7b7',       // emerald-300
+    text: '#ecfdf5',        // emerald-50
+  },
+];
+
+type Theme = typeof themes[number];
+
+function ThemeCard({ theme }: { theme: Theme }) {
+  const navItems = ['Overview', 'Sessions', 'Characters', 'NPCs', 'Locations'];
+  return (
+    <div className="flex flex-col gap-2 w-52">
+      {/* Mini app shell */}
+      <div
+        className="rounded-lg overflow-hidden border"
+        style={{ background: theme.pageBg, borderColor: theme.border }}
+      >
+        {/* Top bar */}
+        <div
+          className="flex items-center gap-2 px-3 py-2 border-b"
+          style={{ background: theme.sidebarBg, borderColor: theme.border }}
+        >
+          <div className="w-2 h-2 rounded-full" style={{ background: theme.accent }} />
+          <span className="text-[10px] font-semibold tracking-wide" style={{ color: theme.text }}>
+            Tabletop Companion
+          </span>
+        </div>
+        {/* Sidebar nav mockup */}
+        <div className="flex" style={{ minHeight: 130 }}>
+          <div
+            className="w-28 border-r flex flex-col py-2 gap-0.5"
+            style={{ background: theme.sidebarBg, borderColor: theme.border }}
+          >
+            {navItems.map((item, i) => (
+              <div
+                key={item}
+                className="flex items-center gap-1.5 px-2 py-1 text-[9px]"
+                style={
+                  i === 0
+                    ? {
+                        background: theme.accentTint,
+                        borderLeft: `2px solid ${theme.accent}`,
+                        color: theme.accent,
+                        fontWeight: 600,
+                      }
+                    : { color: theme.muted, borderLeft: '2px solid transparent' }
+                }
+              >
+                <div
+                  className="w-1.5 h-1.5 rounded-sm shrink-0"
+                  style={{ background: i === 0 ? theme.accent : theme.muted, opacity: i === 0 ? 1 : 0.5 }}
+                />
+                {item}
+              </div>
+            ))}
+          </div>
+          {/* Content area */}
+          <div className="flex-1 p-3 flex flex-col gap-1.5">
+            <div className="h-2 rounded" style={{ background: theme.border, width: '70%' }} />
+            <div className="h-1.5 rounded" style={{ background: theme.border, width: '90%' }} />
+            <div className="h-1.5 rounded" style={{ background: theme.border, width: '55%' }} />
+            <div
+              className="mt-2 rounded px-2 py-1 text-[8px] font-semibold self-start"
+              style={{ background: theme.accent, color: theme.pageBg }}
+            >
+              New Campaign
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Label */}
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-ink-900">{theme.id} — {theme.name}</span>
+          {theme.recommended && (
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600">
+              recommended
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-ink-400">{theme.tag}</p>
+        <div className="flex gap-1 mt-1">
+          {[theme.pageBg, theme.sidebarBg, theme.border, theme.accent, theme.muted].map((hex) => (
+            <div
+              key={hex}
+              className="h-3 w-5 rounded-sm border border-parchment-300"
+              style={{ background: hex }}
+              title={hex}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const colorPalette = [
   { name: 'parchment', shades: ['50', '100', '200', '300', '400'], hex: ['#faf7f2', '#f5f0e8', '#ede3d0', '#ddd0b8', '#c9b99a'] },
   { name: 'ink',       shades: ['300', '500', '700', '900'], hex: ['#a8967f', '#6b5c48', '#3d3329', '#1c1814'] },
@@ -86,6 +244,18 @@ export function UiPreview() {
               </div>
             </div>
           ))}
+        </Section>
+
+        {/* ── Theme Options ─────────────────────────────── */}
+        <Section title="Theme Options">
+          <p className="text-sm text-ink-500 -mt-2">
+            Five candidate colour schemes for the app shell. Pick one to apply to the sidebar.
+          </p>
+          <div className="flex flex-wrap gap-6">
+            {themes.map((t) => (
+              <ThemeCard key={t.id} theme={t} />
+            ))}
+          </div>
         </Section>
 
         {/* ── Typography ────────────────────────────────── */}
