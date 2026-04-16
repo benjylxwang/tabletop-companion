@@ -9,7 +9,9 @@ import { campaignsRouter } from './routes/campaigns.js';
 import { locationsRouter } from './routes/locations.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { charactersRouter } from './routes/characters.js';
+import { uploadsRouter } from './routes/uploads.js';
 import { meRouter } from './routes/me.js';
+import { ensureUploadsBucket } from './lib/uploadsBucket.js';
 
 const app = express();
 
@@ -41,8 +43,14 @@ app.use('/api', authMiddleware, campaignsRouter);
 app.use('/api', authMiddleware, locationsRouter);
 app.use('/api', authMiddleware, sessionsRouter);
 app.use('/api', authMiddleware, charactersRouter);
+app.use('/api/uploads', authMiddleware, uploadsRouter);
 
 const port = Number(process.env.PORT) || 3000;
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`api listening on :${port}`);
+  try {
+    await ensureUploadsBucket();
+  } catch (err) {
+    console.error('failed to ensure uploads bucket on startup', err);
+  }
 });

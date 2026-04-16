@@ -67,7 +67,13 @@ export type CampaignPlayer = z.infer<typeof CampaignPlayer>;
 export const CampaignCreate = Campaign.omit({ id: true, created_at: true });
 export type CampaignCreate = z.infer<typeof CampaignCreate>;
 
-export const CampaignUpdate = CampaignCreate.partial();
+// `cover_image_url` uses `.nullish()` so clients can send `null` to clear an
+// uploaded cover (partial updates drop `undefined`, so `null` is the only way
+// to tell the server "set this to NULL"). Other fields remain optional to
+// avoid broadening clear-semantics beyond what the rest of the form needs.
+export const CampaignUpdate = CampaignCreate.partial().extend({
+  cover_image_url: z.string().nullish(),
+});
 export type CampaignUpdate = z.infer<typeof CampaignUpdate>;
 
 export const CampaignWithRole = Campaign.extend({ my_role: RoleEnum });
@@ -281,6 +287,36 @@ export type FactionsResponse = z.infer<typeof FactionsResponse>;
 
 export const FactionResponse = z.object({ faction: Faction });
 export type FactionResponse = z.infer<typeof FactionResponse>;
+
+// ─── Uploads ─────────────────────────────────────────────────────────────────
+//
+// Files live in a private Supabase Storage bucket. The API returns a short-lived
+// signed URL for immediate display plus the opaque storage `path` that's safe to
+// persist on domain rows (URLs expire; paths don't). Entity columns like
+// `cover_image_url` / `character_sheet_url` / `map_image_url` therefore store the
+// path — the frontend calls `/api/uploads/sign` to get a fresh signed URL when
+// rendering.
+
+export const UPLOAD_MIME_TYPES = ['image/png', 'image/jpeg', 'application/pdf'] as const;
+export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export const UploadResponse = z.object({
+  path: z.string(),
+  url: z.string().url(),
+  expiresAt: z.string().datetime({ offset: true }),
+  contentType: z.enum(UPLOAD_MIME_TYPES),
+  size: z.number().int().nonnegative(),
+});
+export type UploadResponse = z.infer<typeof UploadResponse>;
+
+export const SignedUrlRequest = z.object({ path: z.string().min(1) });
+export type SignedUrlRequest = z.infer<typeof SignedUrlRequest>;
+
+export const SignedUrlResponse = z.object({
+  url: z.string().url(),
+  expiresAt: z.string().datetime({ offset: true }),
+});
+export type SignedUrlResponse = z.infer<typeof SignedUrlResponse>;
 
 // ─── Lore ────────────────────────────────────────────────────────────────────
 
