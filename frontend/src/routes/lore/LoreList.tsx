@@ -33,6 +33,7 @@ const CATEGORY_BADGE: Record<LoreCategoryEnum, string> = {
   Magic: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
   Religion: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
   Politics: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+  Other: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
 };
 
 const VISIBILITY_BADGE: Record<LoreVisibilityEnum, string> = {

@@ -41,7 +41,7 @@ export type RoleEnum = z.infer<typeof RoleEnum>;
 export const NpcStatusEnum = z.enum(['Alive', 'Dead', 'Unknown']);
 export type NpcStatusEnum = z.infer<typeof NpcStatusEnum>;
 
-export const LoreCategoryEnum = z.enum(['History', 'Magic', 'Religion', 'Politics']);
+export const LoreCategoryEnum = z.enum(['History', 'Magic', 'Religion', 'Politics', 'Other']);
 export type LoreCategoryEnum = z.infer<typeof LoreCategoryEnum>;
 
 export const LoreVisibilityEnum = z.enum(['Public', 'Private', 'Revealed']);
