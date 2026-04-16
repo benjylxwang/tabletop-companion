@@ -437,3 +437,8 @@ create trigger cleanup_location_lore_refs
 create trigger cleanup_faction_lore_refs
   after delete on factions
   for each row execute procedure cleanup_lore_references('faction');
+
+-- Retrigger marker: no-op, forces the Migrate workflow to re-run under the
+-- corrected `supabase link + db push` flow after the original run failed on
+-- the old `--project-ref` flag. Supabase skips already-applied migrations by
+-- version, so this trailing comment does not alter schema state.
