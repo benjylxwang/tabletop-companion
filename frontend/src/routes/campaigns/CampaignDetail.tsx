@@ -5,15 +5,10 @@ import {
   fetchCampaign,
   updateCampaign,
   deleteCampaign,
-  fetchCampaignMembers,
-  fetchCampaignInvitations,
-  inviteCampaignMember,
-  removeCampaignMember,
   uploadFile,
 } from '../../lib/api';
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
-import { useAuth } from '../../lib/auth';
 import {
   Button,
   FileUpload,
@@ -24,7 +19,6 @@ import {
   Select,
   Spinner,
   ErrorDisplay,
-  EmptyState,
 } from '../../components';
 import type { CampaignStatusEnum } from '@tabletop/shared';
 
@@ -271,150 +265,6 @@ export default function CampaignDetail() {
         </div>
       )}
 
-      <MembersSection campaignId={id!} isDm={isDm} />
-    </div>
-  );
-}
-
-// ─── Members section ──────────────────────────────────────────────────────────
-
-function MembersSection({ campaignId, isDm }: { campaignId: string; isDm: boolean }) {
-  const queryClient = useQueryClient();
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState(false);
-  const { user } = useAuth();
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['campaign', campaignId, 'members'],
-    queryFn: () => fetchCampaignMembers(campaignId),
-  });
-
-  const { data: invitationsData } = useQuery({
-    queryKey: ['campaign', campaignId, 'invitations'],
-    queryFn: () => fetchCampaignInvitations(campaignId),
-    enabled: isDm,
-  });
-
-  const inviteMutation = useMutation({
-    mutationFn: (email: string) => inviteCampaignMember(campaignId, email),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'invitations'] });
-      setInviteEmail('');
-      setInviteError(null);
-      setInviteSuccess(true);
-      setTimeout(() => setInviteSuccess(false), 3000);
-    },
-    onError: (err: Error) => {
-      setInviteSuccess(false);
-      setInviteError(
-        err.message === 'user_not_found'
-          ? 'No account found with that email.'
-          : err.message === 'already_member'
-            ? 'This person is already a member.'
-            : err.message === 'already_invited'
-              ? 'An invitation has already been sent to this person.'
-              : 'Failed to send invitation. Please try again.',
-      );
-    },
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (userId: string) => removeCampaignMember(campaignId, userId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'members'] });
-    },
-  });
-
-  function handleInvite(e: React.FormEvent) {
-    e.preventDefault();
-    setInviteError(null);
-    setInviteSuccess(false);
-    inviteMutation.mutate(inviteEmail);
-  }
-
-  return (
-    <div className="mt-8">
-      <h2 className="text-lg font-semibold text-slate-100 mb-4">Members</h2>
-
-      {isLoading && <p className="text-slate-400 text-sm">Loading members…</p>}
-
-      {data && data.members.length === 0 && (
-        <EmptyState title="No members yet" description="Invite players to join." />
-      )}
-
-      {data && data.members.length > 0 && (
-        <ul className="space-y-2 mb-4">
-          {data.members.map((m) => (
-            <li
-              key={m.user_id}
-              className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-4 py-2.5"
-            >
-              <div>
-                <p className="text-sm font-medium text-slate-200 font-mono">{m.user_id}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{m.role}</p>
-              </div>
-              {isDm && m.user_id !== user?.id && (
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => removeMutation.mutate(m.user_id)}
-                  isLoading={removeMutation.isPending && removeMutation.variables === m.user_id}
-                >
-                  Remove
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {isDm && invitationsData && invitationsData.invitations.length > 0 && (
-        <div className="mb-4">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">
-            Pending Invitations
-          </p>
-          <ul className="space-y-1.5">
-            {invitationsData.invitations.map((inv) => (
-              <li
-                key={inv.id}
-                className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2"
-              >
-                <span className="text-sm font-mono text-slate-400">{inv.invited_user_id}</span>
-                <span className="ml-auto text-xs text-amber-400/70">Pending</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {isDm && (
-        <form onSubmit={handleInvite} className="flex flex-col gap-2 max-w-md">
-          <div className="flex gap-2">
-            <TextInput
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="player@example.com"
-              required
-              error={!!inviteError}
-            />
-            <Button type="submit" isLoading={inviteMutation.isPending} className="shrink-0">
-              Invite
-            </Button>
-          </div>
-          {inviteError && (
-            <p role="alert" className="text-sm text-red-400">
-              {inviteError}
-            </p>
-          )}
-          {inviteSuccess && (
-            <p role="status" className="text-sm text-green-400">
-              Invitation sent.
-            </p>
-          )}
-        </form>
-      )}
     </div>
   );
 }

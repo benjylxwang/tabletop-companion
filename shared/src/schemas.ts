@@ -55,6 +55,7 @@ export const Campaign = z.object({
   system: z.string().optional(),
   description: z.string().optional(),
   cover_image_url: z.string().optional(),
+  world_map_url: z.string().optional(),
   status: CampaignStatusEnum,
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
@@ -73,6 +74,7 @@ export type CampaignCreate = z.infer<typeof CampaignCreate>;
 // avoid broadening clear-semantics beyond what the rest of the form needs.
 export const CampaignUpdate = CampaignCreate.partial().extend({
   cover_image_url: z.string().nullish(),
+  world_map_url: z.string().nullish(),
 });
 export type CampaignUpdate = z.infer<typeof CampaignUpdate>;
 
@@ -92,6 +94,8 @@ export const CampaignMember = z.object({
   user_id: z.string(),
   role: RoleEnum,
   joined_at: z.string().datetime({ offset: true }),
+  display_name: z.string().nullish(),
+  email: z.string().nullish(),
 });
 export type CampaignMember = z.infer<typeof CampaignMember>;
 
@@ -122,6 +126,8 @@ export const CampaignInvitation = z.object({
   invited_by_user_id: z.string(),
   status: InvitationStatusEnum,
   created_at: z.string().datetime({ offset: true }),
+  invited_user_display_name: z.string().nullish(),
+  invited_user_email: z.string().nullish(),
 });
 export type CampaignInvitation = z.infer<typeof CampaignInvitation>;
 
@@ -264,6 +270,8 @@ export const Location = z.object({
   history: z.string().optional(),
   map_image_url: z.string().optional(),
   parent_location_id: z.string().optional(),
+  map_x: z.number().optional(),
+  map_y: z.number().optional(),
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
@@ -291,6 +299,8 @@ export const LocationUpdate = z.object({
   history: z.string().nullish(),
   map_image_url: z.string().nullish(),
   parent_location_id: z.string().nullish(),
+  map_x: z.number().nullish(),
+  map_y: z.number().nullish(),
   dm_notes: z.string().nullish(),
 });
 export type LocationUpdate = z.infer<typeof LocationUpdate>;
@@ -466,7 +476,7 @@ export type GenerateFieldResponse = z.infer<typeof GenerateFieldResponse>;
 export const GenerateImageEntityType = z.enum(['campaign', 'location', 'npc', 'character']);
 export type GenerateImageEntityType = z.infer<typeof GenerateImageEntityType>;
 
-export const GenerateImageFieldName = z.enum(['cover_image_url', 'map_image_url', 'portrait_url']);
+export const GenerateImageFieldName = z.enum(['cover_image_url', 'map_image_url', 'portrait_url', 'world_map_url']);
 export type GenerateImageFieldName = z.infer<typeof GenerateImageFieldName>;
 
 export const GenerateImageRequest = z.object({

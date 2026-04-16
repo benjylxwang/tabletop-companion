@@ -15,6 +15,7 @@ import {
   ScrollText,
   Shield,
   User,
+  Users,
 } from 'lucide-react';
 import { fetchCampaign } from '../lib/api';
 import { useViewMode } from '../contexts/ViewModeContext';
@@ -207,6 +208,12 @@ export default function Layout() {
                 to={`/campaigns/${campaignId}/lore`}
                 icon={<BookMarked size={iconSize} />}
                 label="Lore"
+                collapsed={collapsed}
+              />
+              <NavItem
+                to={`/campaigns/${campaignId}/members`}
+                icon={<Users size={iconSize} />}
+                label="Members"
                 collapsed={collapsed}
               />
             </>

@@ -243,14 +243,32 @@ campaignsRouter.get('/campaigns/:id/members', async (req, res) => {
     const role = await getCampaignRole(userId, id);
     if (!role) throw new NotFoundError();
 
-    const { data, error } = await supabaseService
+    const { data: membersData, error } = await supabaseService
       .from('campaign_members')
       .select('*')
       .eq('campaign_id', id);
 
     if (error) throw new HttpError(500, 'database error');
 
-    res.json(CampaignMembersResponse.parse({ members: data ?? [] }));
+    const userIds = (membersData ?? []).map((m) => m.user_id as string);
+    const profilesMap: Record<string, { email: string; display_name: string | null }> = {};
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabaseService
+        .from('profiles')
+        .select('id, email, display_name')
+        .in('id', userIds);
+      for (const p of (profilesData ?? []) as { id: string; email: string; display_name: string | null }[]) {
+        profilesMap[p.id] = { email: p.email, display_name: p.display_name };
+      }
+    }
+
+    const members = (membersData ?? []).map((m) => ({
+      ...m,
+      display_name: profilesMap[m.user_id as string]?.display_name ?? null,
+      email: profilesMap[m.user_id as string]?.email ?? null,
+    }));
+
+    res.json(CampaignMembersResponse.parse({ members }));
   } catch (err) {
     sendError(res, err);
   }
@@ -342,7 +360,25 @@ campaignsRouter.get('/campaigns/:id/invitations', async (req, res) => {
 
     if (error) throw new HttpError(500, 'database error');
 
-    res.json(CampaignPendingInvitationsResponse.parse({ invitations: data ?? [] }));
+    const invitedIds = (data ?? []).map((inv) => inv.invited_user_id as string);
+    const profilesMap: Record<string, { email: string; display_name: string | null }> = {};
+    if (invitedIds.length > 0) {
+      const { data: profilesData } = await supabaseService
+        .from('profiles')
+        .select('id, email, display_name')
+        .in('id', invitedIds);
+      for (const p of (profilesData ?? []) as { id: string; email: string; display_name: string | null }[]) {
+        profilesMap[p.id] = { email: p.email, display_name: p.display_name };
+      }
+    }
+
+    const invitations = (data ?? []).map((inv) => ({
+      ...inv,
+      invited_user_display_name: profilesMap[inv.invited_user_id as string]?.display_name ?? null,
+      invited_user_email: profilesMap[inv.invited_user_id as string]?.email ?? null,
+    }));
+
+    res.json(CampaignPendingInvitationsResponse.parse({ invitations }));
   } catch (err) {
     sendError(res, err);
   }
