@@ -141,9 +141,5 @@ test.describe('Campaign permission model (API)', () => {
   });
 });
 
-test.describe('Campaign list page (UI)', () => {
-  test('renders and redirects to /login when unauthenticated', async ({ page }) => {
-    await page.goto('/campaigns');
-    await expect(page).toHaveURL(/\/login/);
-  });
-});
+// UI auth redirect is already covered by tests/auth.spec.ts
+// Full UI campaign tests require PLAYWRIGHT_SUPABASE_URL to be configured.
