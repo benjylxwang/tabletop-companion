@@ -504,14 +504,18 @@ function MapPreview({
         {placed.map((l) => (
           <div
             key={l.id}
-            title={l.name}
-            className="absolute w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-amber-600 shadow-sm pointer-events-none"
+            className="absolute pointer-events-none flex flex-col items-center"
             style={{
               left: `${l.map_x! * 100}%`,
               top: `${l.map_y! * 100}%`,
               transform: 'translate(-50%, -50%)',
             }}
-          />
+          >
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-amber-600 shadow-sm" />
+            <span className="mt-0.5 text-[10px] leading-tight font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] whitespace-nowrap">
+              {l.name}
+            </span>
+          </div>
         ))}
 
         {/* Open map overlay */}
