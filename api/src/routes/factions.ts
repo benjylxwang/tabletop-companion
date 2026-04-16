@@ -147,6 +147,16 @@ factionsRouter.post('/campaigns/:campaignId/factions/:id/members', async (req, r
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
 
+    // Verify the NPC belongs to this campaign to prevent cross-campaign links.
+    const { data: npcExists, error: npcCheckError } = await supabaseService
+      .from('npcs')
+      .select('id')
+      .eq('id', parsed.data.npc_id)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+    if (npcCheckError) throw new HttpError(500, 'database error');
+    if (!npcExists) throw new NotFoundError();
+
     const { error } = await supabaseService
       .from('faction_members')
       .insert({
@@ -225,6 +235,16 @@ factionsRouter.post('/campaigns/:campaignId/factions/:id/relationships', async (
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
+
+    // Verify the related faction belongs to this campaign to prevent cross-campaign links.
+    const { data: relatedExists, error: relatedCheckError } = await supabaseService
+      .from('factions')
+      .select('id')
+      .eq('id', parsed.data.related_faction_id)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+    if (relatedCheckError) throw new HttpError(500, 'database error');
+    if (!relatedExists) throw new NotFoundError();
 
     const { error } = await supabaseService
       .from('faction_relationships')

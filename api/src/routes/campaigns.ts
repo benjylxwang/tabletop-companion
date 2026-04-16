@@ -476,6 +476,12 @@ campaignsRouter.get('/campaigns/:id/overview', async (req, res) => {
     if (npcsResult.error) throw new HttpError(500, 'database error');
     if (locationsResult.error) throw new HttpError(500, 'database error');
     if (factionsResult.error) throw new HttpError(500, 'database error');
+    if (sessionCountResult.error) throw new HttpError(500, 'database error');
+    if (characterCountResult.error) throw new HttpError(500, 'database error');
+    if (npcCountResult.error) throw new HttpError(500, 'database error');
+    if (locationCountResult.error) throw new HttpError(500, 'database error');
+    if (factionCountResult.error) throw new HttpError(500, 'database error');
+    if (loreCountResult.error) throw new HttpError(500, 'database error');
 
     function parseRows<T>(
       rows: Record<string, unknown>[],
