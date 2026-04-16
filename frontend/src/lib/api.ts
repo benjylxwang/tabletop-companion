@@ -7,6 +7,10 @@ import {
   CampaignsResponse,
   HealthResponse,
   MeResponse,
+  SessionCreate,
+  SessionUpdate,
+  SessionResponse,
+  SessionsResponse,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabase } from './supabase';
@@ -98,4 +102,45 @@ export async function removeCampaignMember(campaignId: string, userId: string): 
     method: 'DELETE',
   });
   if (!res.ok) throw new Error(`remove member ${res.status}`);
+}
+
+// ─── Sessions ──────────────────────────────────────────────────────────────────
+
+export async function fetchSessions(campaignId: string, viewMode: ViewMode): Promise<SessionsResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/sessions${viewQuery(viewMode)}`);
+  if (!res.ok) throw new Error(`sessions ${res.status}`);
+  return SessionsResponse.parse(await res.json());
+}
+
+export async function fetchSession(campaignId: string, sessionId: string, viewMode: ViewMode): Promise<SessionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/sessions/${sessionId}${viewQuery(viewMode)}`);
+  if (!res.ok) throw new Error(`session ${res.status}`);
+  return SessionResponse.parse(await res.json());
+}
+
+export async function createSession(campaignId: string, data: SessionCreate): Promise<SessionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create session ${res.status}`);
+  return SessionResponse.parse(await res.json());
+}
+
+export async function updateSession(campaignId: string, sessionId: string, data: SessionUpdate): Promise<SessionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/sessions/${sessionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update session ${res.status}`);
+  return SessionResponse.parse(await res.json());
+}
+
+export async function deleteSession(campaignId: string, sessionId: string): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete session ${res.status}`);
 }
