@@ -28,8 +28,12 @@ export function Modal({
 }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  // Focus trap
+  // Focus trap. Only depends on `open` — consumers that rebuild `onClose`
+  // each render (e.g. wrapping it in a local handler) must not cause the
+  // initial focus to re-fire and steal focus from whatever the user is typing in.
   useEffect(() => {
     if (!open) return;
 
@@ -43,7 +47,7 @@ export function Modal({
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -66,7 +70,7 @@ export function Modal({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -127,6 +131,7 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: 'danger' | 'primary';
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export function ConfirmModal({
@@ -139,10 +144,16 @@ export function ConfirmModal({
   cancelLabel = 'Cancel',
   variant = 'danger',
   isLoading = false,
+  error = null,
 }: ConfirmModalProps) {
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm">
       <p className="text-sm text-ink-700">{message}</p>
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-crimson-600">
+          {error}
+        </p>
+      )}
       <div className="mt-6 flex justify-end gap-3">
         <Button variant="secondary" onClick={onClose} disabled={isLoading}>
           {cancelLabel}

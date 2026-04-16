@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Sword } from 'lucide-react';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   Card,
   ConfirmModal,
@@ -214,6 +216,9 @@ export function UiPreview() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectValue, setSelectValue] = useState('');
   const [uploadedFile, setUploadedFile] = useState<string | undefined>(undefined);
+  const [aiDemoCampaignId, setAiDemoCampaignId] = useState('');
+  const [aiDemoNpcName, setAiDemoNpcName] = useState('');
+  const [aiDemoBackstory, setAiDemoBackstory] = useState('');
 
   return (
     <div className="min-h-screen bg-parchment-50 font-sans">
@@ -409,6 +414,53 @@ export function UiPreview() {
               error="Description must be at least 10 characters."
             >
               <Textarea id="demo-desc" placeholder="Describe your campaign…" error rows={3} />
+            </FormField>
+          </div>
+        </Section>
+
+        {/* ── AI inputs ─────────────────────────────────── */}
+        <Section title="AI inputs (AITextInput / AITextarea)">
+          <p className="text-sm text-ink-500 -mt-2">
+            Sparkle button calls <code>/api/ai/generate-field</code> with campaign context + the current draft.
+            Paste a real campaign id you own (DM role required) to try it live. Requires <code>ANTHROPIC_API_KEY</code> on the API.
+          </p>
+          <FormField
+            label="Demo campaign id"
+            htmlFor="ai-demo-campaign"
+            hint="UUID of a campaign where you are the DM."
+          >
+            <TextInput
+              id="ai-demo-campaign"
+              value={aiDemoCampaignId}
+              onChange={(e) => setAiDemoCampaignId(e.target.value)}
+              placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+            />
+          </FormField>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
+            <FormField label="NPC name" htmlFor="ai-demo-npc-name">
+              <AITextInput
+                id="ai-demo-npc-name"
+                campaignId={aiDemoCampaignId}
+                entityType="npc"
+                fieldName="name"
+                entityDraft={{ name: aiDemoNpcName }}
+                value={aiDemoNpcName}
+                onChange={(e) => setAiDemoNpcName(e.target.value)}
+                placeholder="Click the sparkle to generate…"
+              />
+            </FormField>
+            <FormField label="Character backstory" htmlFor="ai-demo-backstory">
+              <AITextarea
+                id="ai-demo-backstory"
+                campaignId={aiDemoCampaignId}
+                entityType="character"
+                fieldName="backstory"
+                entityDraft={{ backstory: aiDemoBackstory }}
+                value={aiDemoBackstory}
+                onChange={(e) => setAiDemoBackstory(e.target.value)}
+                rows={5}
+                placeholder="Click the sparkle to generate…"
+              />
             </FormField>
           </div>
         </Section>

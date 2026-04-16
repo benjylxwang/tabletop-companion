@@ -110,6 +110,40 @@ export type CampaignMembersResponse = z.infer<typeof CampaignMembersResponse>;
 export const CampaignMemberResponse = z.object({ member: CampaignMember });
 export type CampaignMemberResponse = z.infer<typeof CampaignMemberResponse>;
 
+// ─── CampaignInvitation ───────────────────────────────────────────────────────
+
+export const InvitationStatusEnum = z.enum(['pending', 'accepted', 'declined']);
+export type InvitationStatusEnum = z.infer<typeof InvitationStatusEnum>;
+
+export const CampaignInvitation = z.object({
+  id: z.string(),
+  campaign_id: z.string(),
+  invited_user_id: z.string(),
+  invited_by_user_id: z.string(),
+  status: InvitationStatusEnum,
+  created_at: z.string().datetime({ offset: true }),
+});
+export type CampaignInvitation = z.infer<typeof CampaignInvitation>;
+
+// Includes campaign info for the invitee's list view
+export const CampaignInvitationWithCampaign = CampaignInvitation.extend({
+  campaign_name: z.string(),
+  campaign_system: z.string().optional(),
+  campaign_status: CampaignStatusEnum,
+});
+export type CampaignInvitationWithCampaign = z.infer<typeof CampaignInvitationWithCampaign>;
+
+export const CampaignInvitationResponse = z.object({ invitation: CampaignInvitation });
+export type CampaignInvitationResponse = z.infer<typeof CampaignInvitationResponse>;
+
+// For the invitee: pending invitations with campaign details
+export const CampaignInvitationsResponse = z.object({ invitations: z.array(CampaignInvitationWithCampaign) });
+export type CampaignInvitationsResponse = z.infer<typeof CampaignInvitationsResponse>;
+
+// For the DM: pending invitations for a specific campaign (no campaign details needed)
+export const CampaignPendingInvitationsResponse = z.object({ invitations: z.array(CampaignInvitation) });
+export type CampaignPendingInvitationsResponse = z.infer<typeof CampaignPendingInvitationsResponse>;
+
 // ─── Session ─────────────────────────────────────────────────────────────────
 
 export const Session = z.object({
@@ -187,7 +221,7 @@ export const Npc = z.object({
   alignment: z.string().optional(),
   appearance: z.string().optional(),
   personality: z.string().optional(),
-  relationships: z.array(z.string()).optional(),
+  relationships: z.string().optional(),
   status: NpcStatusEnum,
   first_appeared_session_id: z.string().optional(),
   faction_id: z.string().optional(),
@@ -199,7 +233,13 @@ export type Npc = z.infer<typeof Npc>;
 export const NpcPlayer = Npc.omit({ dm_notes: true });
 export type NpcPlayer = z.infer<typeof NpcPlayer>;
 
-export const NpcCreate = Npc.omit({ id: true, created_at: true });
+// campaign_id is omitted — the URL supplies it, and the server won't trust a
+// client-sent value for placement.
+export const NpcCreate = Npc.omit({
+  id: true,
+  created_at: true,
+  campaign_id: true,
+});
 export type NpcCreate = z.infer<typeof NpcCreate>;
 
 export const NpcUpdate = NpcCreate.partial();
@@ -325,7 +365,7 @@ export const Lore = z.object({
   campaign_id: z.string(),
   title: z.string(),
   category: LoreCategoryEnum,
-  content: z.string(),
+  content: z.string().optional(),
   visibility: LoreVisibilityEnum,
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
@@ -346,3 +386,61 @@ export type LoreListResponse = z.infer<typeof LoreListResponse>;
 
 export const LoreResponse = z.object({ lore: Lore });
 export type LoreResponse = z.infer<typeof LoreResponse>;
+
+// ─── AI generator ────────────────────────────────────────────────────────────
+// Used by the "secret" dev generator (Ctrl+Shift+G) and the per-field AI assist
+// on AITextInput / AITextarea. DM-only at the API layer.
+
+export const GenerateCampaignMode = z.enum(['new', 'populate']);
+export type GenerateCampaignMode = z.infer<typeof GenerateCampaignMode>;
+
+export const GenerateCampaignRequest = z
+  .object({
+    mode: GenerateCampaignMode,
+    campaign_id: z.string().optional(),
+    seed: z.string().max(500).optional(),
+  })
+  .refine((v) => v.mode === 'new' || !!v.campaign_id, {
+    message: 'campaign_id is required when mode is "populate"',
+    path: ['campaign_id'],
+  });
+export type GenerateCampaignRequest = z.infer<typeof GenerateCampaignRequest>;
+
+export const GenerateCampaignCounts = z.object({
+  sessions: z.number().int(),
+  npcs: z.number().int(),
+  characters: z.number().int(),
+  locations: z.number().int(),
+  factions: z.number().int(),
+  lore: z.number().int(),
+});
+export type GenerateCampaignCounts = z.infer<typeof GenerateCampaignCounts>;
+
+export const GenerateCampaignResponse = z.object({
+  campaign_id: z.string(),
+  counts: GenerateCampaignCounts,
+});
+export type GenerateCampaignResponse = z.infer<typeof GenerateCampaignResponse>;
+
+export const GenerateFieldEntityType = z.enum([
+  'campaign',
+  'session',
+  'character',
+  'npc',
+  'location',
+  'faction',
+  'lore',
+]);
+export type GenerateFieldEntityType = z.infer<typeof GenerateFieldEntityType>;
+
+export const GenerateFieldRequest = z.object({
+  campaign_id: z.string(),
+  entity_type: GenerateFieldEntityType,
+  field_name: z.string().min(1).max(100),
+  entity_draft: z.record(z.unknown()).optional(),
+  user_hint: z.string().max(500).optional(),
+});
+export type GenerateFieldRequest = z.infer<typeof GenerateFieldRequest>;
+
+export const GenerateFieldResponse = z.object({ text: z.string() });
+export type GenerateFieldResponse = z.infer<typeof GenerateFieldResponse>;

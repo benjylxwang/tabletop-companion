@@ -186,8 +186,8 @@ create table npcs (
   appearance                text,
   personality               text,
   relationships             text,
-  status                    text        not null default 'alive'
-                                        check (status in ('alive', 'dead', 'unknown')),
+  status                    text        not null default 'Alive'
+                                        check (status in ('Alive', 'Dead', 'Unknown')),
   first_appeared_session_id uuid        references sessions(id) on delete set null,
   faction_id                uuid        references factions(id) on delete set null,
   visibility                text        not null default 'public'

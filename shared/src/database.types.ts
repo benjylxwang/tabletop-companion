@@ -271,7 +271,7 @@ export type Database = {
           appearance: string | null
           personality: string | null
           relationships: string | null
-          status: 'alive' | 'dead' | 'unknown'
+          status: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id: string | null
           faction_id: string | null
           visibility: 'private' | 'public' | 'revealed'
@@ -289,7 +289,7 @@ export type Database = {
           appearance?: string | null
           personality?: string | null
           relationships?: string | null
-          status?: 'alive' | 'dead' | 'unknown'
+          status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
           visibility?: 'private' | 'public' | 'revealed'
@@ -307,7 +307,7 @@ export type Database = {
           appearance?: string | null
           personality?: string | null
           relationships?: string | null
-          status?: 'alive' | 'dead' | 'unknown'
+          status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
           visibility?: 'private' | 'public' | 'revealed'
@@ -628,6 +628,58 @@ export type Database = {
           {
             foreignKeyName: "profiles_id_fkey"
             columns: ["id"]
+            isOneToOne: false
+            referencedRelation: "auth.users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      campaign_invitations: {
+        Row: {
+          id: string
+          campaign_id: string
+          invited_user_id: string
+          invited_by_user_id: string
+          status: 'pending' | 'accepted' | 'declined'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          invited_user_id: string
+          invited_by_user_id: string
+          status?: 'pending' | 'accepted' | 'declined'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          invited_user_id?: string
+          invited_by_user_id?: string
+          status?: 'pending' | 'accepted' | 'declined'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_invitations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_invitations_invited_user_id_fkey"
+            columns: ["invited_user_id"]
+            isOneToOne: false
+            referencedRelation: "auth.users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_invitations_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
             isOneToOne: false
             referencedRelation: "auth.users"
             referencedColumns: ["id"]
