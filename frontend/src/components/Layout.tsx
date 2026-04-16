@@ -11,6 +11,7 @@ import {
   Ghost,
   LayoutDashboard,
   LogOut,
+  Map,
   MapPin,
   ScrollText,
   Shield,
@@ -110,7 +111,7 @@ export default function Layout() {
   const iconSize = 18;
 
   return (
-    <div className="flex min-h-screen bg-[#0a0706] text-[#f5f0e0]">
+    <div className="flex h-screen overflow-hidden bg-[#0a0706] text-[#f5f0e0]">
       {/* ── Sidebar ── */}
       <aside
         className={[
@@ -196,6 +197,12 @@ export default function Layout() {
                 to={`/campaigns/${campaignId}/locations`}
                 icon={<MapPin size={iconSize} />}
                 label="Locations"
+                collapsed={collapsed}
+              />
+              <NavItem
+                to={`/campaigns/${campaignId}/map`}
+                icon={<Map size={iconSize} />}
+                label="Map"
                 collapsed={collapsed}
               />
               <NavItem
