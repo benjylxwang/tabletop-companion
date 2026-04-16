@@ -140,8 +140,8 @@ export async function generateImage({
 export async function generateImageLargeFormat({
   prompt,
   userId,
-  width = 2048,
-  height = 1024,
+  width = 1920,
+  height = 960,
 }: {
   prompt: string;
   userId: string;

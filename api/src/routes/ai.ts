@@ -1016,7 +1016,7 @@ aiRouter.post('/generate-image', async (req, res) => {
     const prompt = await buildImagePrompt(entity_type, entity_id, field_name, prompt_hint);
 
     const { path, url, expires_at } = field_name === 'world_map_url'
-      ? await generateImageLargeFormat({ prompt, userId, width: 2048, height: 1024 })
+      ? await generateImageLargeFormat({ prompt, userId, width: 1920, height: 960 })
       : await generateImage({ prompt, userId });
 
     res.status(201).json(GenerateImageResponse.parse({ path, url, expires_at }));
