@@ -5,6 +5,8 @@ import {
   GenerationJobResponse,
   GenerateFieldRequest,
   GenerateFieldResponse,
+  GenerateEntityFieldsRequest,
+  GenerateEntityFieldsResponse,
   GenerateImageRequest,
   GenerateImageResponse,
   type GenerateCampaignCounts,
@@ -862,6 +864,65 @@ aiRouter.post('/generate-field', async (req, res) => {
     sendError(res, err);
   }
 });
+
+// ─── POST /ai/generate-entity-fields ─────────────────────────────────────────
+
+aiRouter.post('/generate-entity-fields', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+
+    const parsed = GenerateEntityFieldsRequest.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ValidationError('invalid body', parsed.error.flatten());
+    }
+    const { campaign_id, entity_type, fields, entity_draft, user_hint, provider } = parsed.data;
+
+    const role = await getCampaignRole(userId, campaign_id);
+    if (!role) throw new NotFoundError();
+    if (role !== 'dm') throw new ForbiddenError();
+
+    const snapshot = await fetchCampaignSnapshot(campaign_id);
+    const system = `You write content for a tabletop RPG campaign manager.\nReturn ONLY a JSON object whose keys are the exact field names requested and whose values are the plain-prose text for each field. No markdown, no extra keys, no surrounding text.\n\nCampaign snapshot (for reference only — do not restate it in the output):\n${JSON.stringify(snapshot, null, 2)}`;
+    const user = buildEntityFieldsPrompt(entity_type, fields, entity_draft, user_hint);
+
+    const raw = await generateText({ system, user, provider });
+    const fieldsMap = extractJsonFields(raw);
+    res.json(GenerateEntityFieldsResponse.parse({ fields: fieldsMap }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+function buildEntityFieldsPrompt(
+  entityType: string,
+  fields: string[],
+  entityDraft: Record<string, unknown> | undefined,
+  userHint: string | undefined,
+): string {
+  const parts: string[] = [
+    `Generate the following fields for a ${entityType}: ${fields.join(', ')}.`,
+    'All fields must be consistent with each other — they describe the same entity.',
+  ];
+  if (entityDraft && Object.keys(entityDraft).length > 0) {
+    parts.push(`Current draft of this ${entityType}:\n${JSON.stringify(entityDraft, null, 2)}`);
+  }
+  if (userHint?.trim()) {
+    parts.push(`Extra instructions from the user: ${userHint.trim()}`);
+  }
+  parts.push(`Return a JSON object: { ${fields.map((f) => `"${f}": "..."`).join(', ')} }`);
+  return parts.join('\n\n');
+}
+
+function extractJsonFields(raw: string): Record<string, string> {
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const parsed: unknown = JSON.parse(cleaned);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new HttpError(500, 'AI returned unexpected format');
+  }
+  return Object.fromEntries(
+    Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
+  );
+}
 
 function buildFieldPrompt(
   entityType: string,

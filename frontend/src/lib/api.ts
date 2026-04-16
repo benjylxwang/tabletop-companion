@@ -20,6 +20,7 @@ import {
   GenerateCampaignResponse,
   GenerationJobResponse,
   GenerateFieldResponse,
+  GenerateEntityFieldsResponse,
   GenerateImageResponse,
   HealthResponse,
   LocationCreate,
@@ -53,6 +54,7 @@ import {
 import type {
   GenerateCampaignRequest,
   GenerateFieldRequest,
+  GenerateEntityFieldsRequest,
   GenerateImageRequest,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
@@ -533,6 +535,21 @@ export async function generateFieldAi(
     throw new Error(body.error ?? `generate field ${res.status}`);
   }
   return GenerateFieldResponse.parse(await res.json());
+}
+
+export async function generateEntityFieldsAi(
+  req: GenerateEntityFieldsRequest,
+): Promise<GenerateEntityFieldsResponse> {
+  const res = await authedFetch('/api/ai/generate-entity-fields', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `generate entity fields ${res.status}`);
+  }
+  return GenerateEntityFieldsResponse.parse(await res.json());
 }
 
 export async function generateImageAi(

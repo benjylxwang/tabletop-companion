@@ -12,12 +12,14 @@ import {
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   ConfirmModal,
   FormField,
+  GenerateAllFieldsButton,
   GenerateImageButton,
   TextInput,
-  Textarea,
   Select,
   Spinner,
   ErrorDisplay,
@@ -176,15 +178,23 @@ export default function NpcDetail() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Role / Title" htmlFor="edit-npc-role-title">
-              <TextInput
+              <AITextInput
                 id="edit-npc-role-title"
+                campaignId={campaignId!}
+                entityType="npc"
+                fieldName="role_title"
+                entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
                 value={roleTitle}
                 onChange={(e) => setRoleTitle(e.target.value)}
               />
             </FormField>
             <FormField label="Alignment" htmlFor="edit-npc-alignment">
-              <TextInput
+              <AITextInput
                 id="edit-npc-alignment"
+                campaignId={campaignId!}
+                entityType="npc"
+                fieldName="alignment"
+                entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
                 value={alignment}
                 onChange={(e) => setAlignment(e.target.value)}
               />
@@ -192,8 +202,12 @@ export default function NpcDetail() {
           </div>
 
           <FormField label="Appearance" htmlFor="edit-npc-appearance">
-            <Textarea
+            <AITextarea
               id="edit-npc-appearance"
+              campaignId={campaignId!}
+              entityType="npc"
+              fieldName="appearance"
+              entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
               value={appearance}
               onChange={(e) => setAppearance(e.target.value)}
               rows={2}
@@ -201,8 +215,12 @@ export default function NpcDetail() {
           </FormField>
 
           <FormField label="Public personality" htmlFor="edit-npc-personality">
-            <Textarea
+            <AITextarea
               id="edit-npc-personality"
+              campaignId={campaignId!}
+              entityType="npc"
+              fieldName="personality"
+              entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
               value={personality}
               onChange={(e) => setPersonality(e.target.value)}
               rows={2}
@@ -210,13 +228,31 @@ export default function NpcDetail() {
           </FormField>
 
           <FormField label="Relationships" htmlFor="edit-npc-relationships">
-            <Textarea
+            <AITextarea
               id="edit-npc-relationships"
+              campaignId={campaignId!}
+              entityType="npc"
+              fieldName="relationships"
+              entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
               value={relationships}
               onChange={(e) => setRelationships(e.target.value)}
               rows={2}
             />
           </FormField>
+
+          <GenerateAllFieldsButton
+            campaignId={campaignId!}
+            entityType="npc"
+            entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
+            fields={[
+              { fieldName: 'role_title', onChange: (v) => setRoleTitle(v) },
+              { fieldName: 'alignment', onChange: (v) => setAlignment(v) },
+              { fieldName: 'appearance', onChange: (v) => setAppearance(v) },
+              { fieldName: 'personality', onChange: (v) => setPersonality(v) },
+              { fieldName: 'relationships', onChange: (v) => setRelationships(v) },
+              ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+            ]}
+          />
 
           <FormField label="Status" htmlFor="edit-npc-status">
             <Select
@@ -246,8 +282,12 @@ export default function NpcDetail() {
               htmlFor="edit-npc-dm-notes"
               hint="Visible to DMs only — never shown to players"
             >
-              <Textarea
+              <AITextarea
                 id="edit-npc-dm-notes"
+                campaignId={campaignId!}
+                entityType="npc"
+                fieldName="dm_notes"
+                entityDraft={{ name, role_title: roleTitle, alignment, appearance, personality, relationships, status }}
                 value={dmNotes}
                 onChange={(e) => setDmNotes(e.target.value)}
                 rows={4}

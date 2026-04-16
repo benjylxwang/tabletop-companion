@@ -16,11 +16,12 @@ import {
 } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   ConfirmModal,
   FormField,
-  TextInput,
-  Textarea,
+  GenerateAllFieldsButton,
   Select,
   Spinner,
   ErrorDisplay,
@@ -363,8 +364,12 @@ export default function LoreDetail() {
           className="space-y-4"
         >
           <FormField label="Title" htmlFor="edit-lore-title" required>
-            <TextInput
+            <AITextInput
               id="edit-lore-title"
+              campaignId={campaignId!}
+              entityType="lore"
+              fieldName="title"
+              entityDraft={{ title, category, content, visibility }}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -392,13 +397,28 @@ export default function LoreDetail() {
           </div>
 
           <FormField label="Content" htmlFor="edit-lore-content">
-            <Textarea
+            <AITextarea
               id="edit-lore-content"
+              campaignId={campaignId!}
+              entityType="lore"
+              fieldName="content"
+              entityDraft={{ title, category, content, visibility }}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={6}
             />
           </FormField>
+
+          <GenerateAllFieldsButton
+            campaignId={campaignId!}
+            entityType="lore"
+            entityDraft={{ title, category, content, visibility }}
+            fields={[
+              { fieldName: 'title', onChange: (v) => setTitle(v) },
+              { fieldName: 'content', onChange: (v) => setContent(v) },
+              ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+            ]}
+          />
 
           {!isPlayerView && (
             <FormField
@@ -406,8 +426,12 @@ export default function LoreDetail() {
               htmlFor="edit-lore-dm-notes"
               hint="Visible to DMs only — never shown to players"
             >
-              <Textarea
+              <AITextarea
                 id="edit-lore-dm-notes"
+                campaignId={campaignId!}
+                entityType="lore"
+                fieldName="dm_notes"
+                entityDraft={{ title, category, content, visibility }}
                 value={dmNotes}
                 onChange={(e) => setDmNotes(e.target.value)}
                 rows={4}

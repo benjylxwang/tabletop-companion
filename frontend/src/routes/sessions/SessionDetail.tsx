@@ -15,10 +15,12 @@ import {
 } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   FormField,
+  GenerateAllFieldsButton,
   TextInput,
-  Textarea,
   Select,
   Spinner,
   ErrorDisplay,
@@ -215,8 +217,12 @@ export default function SessionDetail() {
           className="space-y-4"
         >
           <FormField label="Title" htmlFor="edit-session-title" required>
-            <TextInput
+            <AITextInput
               id="edit-session-title"
+              campaignId={campaignId!}
+              entityType="session"
+              fieldName="title"
+              entityDraft={{ title, date_played: datePlayed, summary, highlights: highlightsRaw }}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -233,8 +239,12 @@ export default function SessionDetail() {
           </FormField>
 
           <FormField label="Summary" htmlFor="edit-session-summary">
-            <Textarea
+            <AITextarea
               id="edit-session-summary"
+              campaignId={campaignId!}
+              entityType="session"
+              fieldName="summary"
+              entityDraft={{ title, date_played: datePlayed, summary, highlights: highlightsRaw }}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               rows={4}
@@ -246,13 +256,29 @@ export default function SessionDetail() {
             htmlFor="edit-session-highlights"
             hint="One per line (or comma-separated)"
           >
-            <Textarea
+            <AITextarea
               id="edit-session-highlights"
+              campaignId={campaignId!}
+              entityType="session"
+              fieldName="highlights"
+              entityDraft={{ title, date_played: datePlayed, summary, highlights: highlightsRaw }}
               value={highlightsRaw}
               onChange={(e) => setHighlightsRaw(e.target.value)}
               rows={3}
             />
           </FormField>
+
+          <GenerateAllFieldsButton
+            campaignId={campaignId!}
+            entityType="session"
+            entityDraft={{ title, date_played: datePlayed, summary, highlights: highlightsRaw }}
+            fields={[
+              { fieldName: 'title', onChange: (v) => setTitle(v) },
+              { fieldName: 'summary', onChange: (v) => setSummary(v) },
+              { fieldName: 'highlights', onChange: (v) => setHighlightsRaw(v) },
+              ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+            ]}
+          />
 
           <FormField label="XP awarded" htmlFor="edit-session-xp">
             <TextInput
@@ -270,8 +296,12 @@ export default function SessionDetail() {
               htmlFor="edit-session-dm-notes"
               hint="Visible to DMs only — never shown to players"
             >
-              <Textarea
+              <AITextarea
                 id="edit-session-dm-notes"
+                campaignId={campaignId!}
+                entityType="session"
+                fieldName="dm_notes"
+                entityDraft={{ title, date_played: datePlayed, summary, highlights: highlightsRaw }}
                 value={dmNotes}
                 onChange={(e) => setDmNotes(e.target.value)}
                 rows={4}
