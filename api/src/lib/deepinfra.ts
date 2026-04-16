@@ -18,7 +18,7 @@ function getClient(): OpenAI {
 }
 
 function textModel(): string {
-  return process.env.DEEPINFRA_TEXT_MODEL ?? 'meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo';
+  return process.env.DEEPINFRA_TEXT_MODEL ?? 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
 }
 
 function imageModel(): string {
