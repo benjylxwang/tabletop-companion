@@ -990,19 +990,22 @@ export default function CampaignDetail() {
                   <Link
                     key={l.id}
                     to={`/campaigns/${id}/locations/${l.id}`}
-                    className="p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 transition-colors"
                   >
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="text-sm font-medium text-slate-200">{l.name}</p>
-                      {l.type && (
-                        <span className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
-                          {l.type}
-                        </span>
+                    <EntityAvatar imageUrl={l.map_image_url} entityType="location" size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className="text-sm font-medium text-slate-200 truncate">{l.name}</p>
+                        {l.type && (
+                          <span className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded shrink-0">
+                            {l.type}
+                          </span>
+                        )}
+                      </div>
+                      {l.description && (
+                        <p className="text-xs text-slate-500 line-clamp-1">{l.description}</p>
                       )}
                     </div>
-                    {l.description && (
-                      <p className="text-xs text-slate-500 line-clamp-1">{l.description}</p>
-                    )}
                   </Link>
                 ))}
               </div>
