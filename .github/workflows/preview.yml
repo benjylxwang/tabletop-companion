@@ -48,7 +48,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-          TIMEOUT_MS: "180000"
+          TIMEOUT_MS: "360000"
         run: node .github/scripts/wait-for-railway.mjs
 
       - name: Install Playwright browsers
