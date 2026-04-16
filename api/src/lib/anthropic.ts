@@ -23,7 +23,7 @@ function getClient(): Anthropic {
   if (!key) {
     throw new HttpError(503, 'AI features are disabled: ANTHROPIC_API_KEY is not configured');
   }
-  client = new Anthropic({ apiKey: key, timeout: 120_000 });
+  client = new Anthropic({ apiKey: key, timeout: 300_000 });
   return client;
 }
 
