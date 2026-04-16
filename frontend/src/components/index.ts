@@ -1,3 +1,5 @@
+export { AITextInput } from './ui/AITextInput';
+export { AITextarea } from './ui/AITextarea';
 export { Button } from './ui/Button';
 export { Card } from './ui/Card';
 export { ConfirmModal, Modal } from './ui/Modal';
