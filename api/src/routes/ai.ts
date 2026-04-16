@@ -151,10 +151,10 @@ const CAMPAIGN_GENERATOR_TOOL: GenerateJsonTool = {
             title: { type: 'string' },
             category: {
               type: 'string',
-              enum: ['history', 'magic', 'religion', 'politics', 'other'],
+              enum: ['History', 'Magic', 'Religion', 'Politics', 'Other'],
             },
             content: { type: 'string' },
-            visibility: { type: 'string', enum: ['private', 'public', 'revealed'] },
+            visibility: { type: 'string', enum: ['Private', 'Public', 'Revealed'] },
             dm_notes: { type: 'string' },
           },
         },
@@ -223,9 +223,9 @@ interface CampaignPayload {
   }>;
   lore: Array<{
     title: string;
-    category: 'history' | 'magic' | 'religion' | 'politics' | 'other';
+    category: 'History' | 'Magic' | 'Religion' | 'Politics' | 'Other';
     content?: string;
-    visibility?: 'private' | 'public' | 'revealed';
+    visibility?: 'Private' | 'Public' | 'Revealed';
     dm_notes?: string;
   }>;
 }
@@ -266,6 +266,7 @@ aiRouter.post('/generate-campaign', async (req, res) => {
       tool: CAMPAIGN_GENERATOR_TOOL,
       provider,
     });
+    console.log('[ai/generate-campaign] payload from provider:', JSON.stringify(payload, null, 2));
 
     const targetCampaignId =
       mode === 'populate' ? campaign_id! : await createCampaignForUser(payload, userId);
@@ -311,14 +312,18 @@ async function createCampaignForUser(
     })
     .select('id')
     .single();
-  if (error || !campaign) throw new HttpError(500, 'database error');
+  if (error || !campaign) {
+    console.error('[createCampaignForUser] campaigns insert error:', error);
+    throw new HttpError(500, `database error creating campaign: ${error?.message ?? 'no data'}`);
+  }
 
   const { error: memberError } = await supabaseService
     .from('campaign_members')
     .insert({ campaign_id: campaign.id, user_id: userId, role: 'dm' });
   if (memberError) {
+    console.error('[createCampaignForUser] campaign_members insert error:', memberError);
     await supabaseService.from('campaigns').delete().eq('id', campaign.id);
-    throw new HttpError(500, 'database error');
+    throw new HttpError(500, `database error adding DM member: ${memberError.message}`);
   }
 
   return campaign.id as string;
@@ -345,7 +350,10 @@ async function insertPayload(
         .from('campaigns')
         .update(update)
         .eq('id', campaignId);
-      if (error) throw new HttpError(500, 'database error');
+      if (error) {
+        console.error('[insertPayload] campaign update error:', error);
+        throw new HttpError(500, `database error updating campaign: ${error.message}`);
+      }
     }
   }
 
@@ -400,7 +408,10 @@ async function insertPayload(
       .from('locations')
       .update({ parent_location_id: parentId })
       .eq('id', childId);
-    if (error) throw new HttpError(500, 'database error');
+    if (error) {
+      console.error('[insertPayload] location parent update error:', error);
+      throw new HttpError(500, `database error updating location parent: ${error.message}`);
+    }
   }
 
   // 4. NPCs — depend on factions + sessions.
@@ -449,7 +460,7 @@ async function insertPayload(
       title: l.title,
       category: l.category,
       content: l.content ?? null,
-      visibility: l.visibility ?? 'public',
+      visibility: l.visibility ?? 'Public',
       dm_notes: l.dm_notes ?? null,
     })),
   );
@@ -471,11 +482,15 @@ async function insertBatch(
   refs?: string[],
 ): Promise<Record<string, string>> {
   if (rows.length === 0) return {};
+  console.log(`[insertBatch] ${table}:`, JSON.stringify(rows, null, 2));
   const { data, error } = await supabaseService
     .from(table)
     .insert(rows as never)
     .select('id');
-  if (error || !data) throw new HttpError(500, 'database error');
+  if (error || !data) {
+    console.error(`[insertBatch] ${table} error:`, error);
+    throw new HttpError(500, `database error inserting ${table}: ${error?.message ?? 'no data'}`);
+  }
   if (!refs) return {};
   const map: Record<string, string> = {};
   for (let i = 0; i < refs.length && i < data.length; i += 1) {
