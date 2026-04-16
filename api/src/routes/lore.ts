@@ -19,7 +19,7 @@ import {
 
 export const loreRouter = Router();
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Coerce DB nulls to undefined so Zod `.optional()` accepts them.
 function nullToUndefined(row: Record<string, unknown>): Record<string, unknown> {
