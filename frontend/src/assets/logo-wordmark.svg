@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 30" width="150" height="30">
+  <!-- Decorative top line with diamond ends -->
+  <line x1="0" y1="3" x2="150" y2="3" stroke="#f59e0b" stroke-opacity="0.12" stroke-width="0.5"/>
+  <polygon points="72,1 75,3 72,5" fill="#f59e0b" fill-opacity="0.2"/>
+  <polygon points="78,1 75,3 78,5" fill="#f59e0b" fill-opacity="0.2"/>
+
+  <!-- "TABLETOP" in small caps with wide tracking -->
+  <text x="75" y="16" text-anchor="middle" font-family="'Crimson Text', Georgia, serif" font-size="12" font-weight="700" fill="#f59e0b" letter-spacing="3">TABLETOP</text>
+
+  <!-- "COMPANION" smaller underneath -->
+  <text x="75" y="25" text-anchor="middle" font-family="'Crimson Text', Georgia, serif" font-size="7.5" font-weight="400" fill="#cbd5e1" letter-spacing="4">COMPANION</text>
+
+  <!-- Decorative bottom line -->
+  <line x1="15" y1="29" x2="135" y2="29" stroke="#f59e0b" stroke-opacity="0.12" stroke-width="0.5"/>
+</svg>

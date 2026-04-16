@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { fetchCampaign } from '../lib/api';
 import { useViewMode } from '../contexts/ViewModeContext';
+import logoIcon from '../assets/logo-icon.svg';
+import logoWordmark from '../assets/logo-wordmark.svg';
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
@@ -114,14 +116,9 @@ export default function Layout() {
       >
         {/* Brand */}
         <div className="flex h-14 items-center border-b border-slate-800 px-3">
-          {/* Logo placeholder — replace with <img> once asset exists */}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-500/20 text-amber-400 font-bold text-sm select-none">
-            TC
-          </div>
+          <img src={logoIcon} alt="Tabletop Companion" className="h-8 w-8 shrink-0" />
           {!collapsed && (
-            <span className="ml-3 font-semibold tracking-tight text-amber-400 truncate">
-              Tabletop Companion
-            </span>
+            <img src={logoWordmark} alt="Tabletop Companion" className="ml-3 h-5" />
           )}
         </div>
 
