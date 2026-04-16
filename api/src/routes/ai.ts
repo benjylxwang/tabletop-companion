@@ -4,6 +4,8 @@ import {
   GenerateCampaignResponse,
   GenerateFieldRequest,
   GenerateFieldResponse,
+  GenerateImageRequest,
+  GenerateImageResponse,
   type GenerateCampaignCounts,
 } from '@tabletop/shared';
 import { supabaseService } from '../lib/supabaseService.js';
@@ -15,7 +17,7 @@ import {
   ForbiddenError,
   sendError,
 } from '../lib/httpErrors.js';
-import { generateJson, generateText, type GenerateJsonTool } from '../lib/anthropic.js';
+import { generateJson, generateText, generateImage, type GenerateJsonTool } from '../lib/aiProvider.js';
 
 export const aiRouter = Router();
 
@@ -110,7 +112,7 @@ const CAMPAIGN_GENERATOR_TOOL: GenerateJsonTool = {
             appearance: { type: 'string' },
             personality: { type: 'string' },
             relationships: { type: 'string' },
-            status: { type: 'string', enum: ['alive', 'dead', 'unknown'] },
+            status: { type: 'string', enum: ['Alive', 'Dead', 'Unknown'] },
             faction_ref: { type: 'string' },
             first_session_ref: { type: 'string' },
             dm_notes: { type: 'string' },
@@ -149,10 +151,10 @@ const CAMPAIGN_GENERATOR_TOOL: GenerateJsonTool = {
             title: { type: 'string' },
             category: {
               type: 'string',
-              enum: ['history', 'magic', 'religion', 'politics', 'other'],
+              enum: ['History', 'Magic', 'Religion', 'Politics', 'Other'],
             },
             content: { type: 'string' },
-            visibility: { type: 'string', enum: ['private', 'public', 'revealed'] },
+            visibility: { type: 'string', enum: ['Private', 'Public', 'Revealed'] },
             dm_notes: { type: 'string' },
           },
         },
@@ -202,7 +204,7 @@ interface CampaignPayload {
     appearance?: string;
     personality?: string;
     relationships?: string;
-    status?: 'alive' | 'dead' | 'unknown';
+    status?: 'Alive' | 'Dead' | 'Unknown';
     faction_ref?: string;
     first_session_ref?: string;
     dm_notes?: string;
@@ -221,9 +223,9 @@ interface CampaignPayload {
   }>;
   lore: Array<{
     title: string;
-    category: 'history' | 'magic' | 'religion' | 'politics' | 'other';
+    category: 'History' | 'Magic' | 'Religion' | 'Politics' | 'Other';
     content?: string;
-    visibility?: 'private' | 'public' | 'revealed';
+    visibility?: 'Private' | 'Public' | 'Revealed';
     dm_notes?: string;
   }>;
 }
@@ -248,7 +250,7 @@ aiRouter.post('/generate-campaign', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { mode, campaign_id, seed } = parsed.data;
+    const { mode, campaign_id, seed, provider, generate_images } = parsed.data;
 
     // DM check for populate. New-campaign mode makes the caller the DM.
     if (mode === 'populate') {
@@ -262,13 +264,24 @@ aiRouter.post('/generate-campaign', async (req, res) => {
       system: CAMPAIGN_SYSTEM_PROMPT,
       user: userPrompt,
       tool: CAMPAIGN_GENERATOR_TOOL,
+      provider,
     });
+    console.log('[ai/generate-campaign] payload from provider:', JSON.stringify(payload, null, 2));
 
     const targetCampaignId =
       mode === 'populate' ? campaign_id! : await createCampaignForUser(payload, userId);
 
     try {
-      const counts = await insertPayload(targetCampaignId, payload, mode);
+      const { counts, npcIds, characterIds, locationIds } = await insertPayload(
+        targetCampaignId,
+        payload,
+        mode,
+      );
+
+      if (generate_images) {
+        await generateImagesForCampaign(targetCampaignId, payload, { npcIds, characterIds, locationIds }, userId);
+      }
+
       res.status(201).json(
         GenerateCampaignResponse.parse({ campaign_id: targetCampaignId, counts }),
       );
@@ -308,24 +321,35 @@ async function createCampaignForUser(
     })
     .select('id')
     .single();
-  if (error || !campaign) throw new HttpError(500, 'database error');
+  if (error || !campaign) {
+    console.error('[createCampaignForUser] campaigns insert error:', error);
+    throw new HttpError(500, `database error creating campaign: ${error?.message ?? 'no data'}`);
+  }
 
   const { error: memberError } = await supabaseService
     .from('campaign_members')
     .insert({ campaign_id: campaign.id, user_id: userId, role: 'dm' });
   if (memberError) {
+    console.error('[createCampaignForUser] campaign_members insert error:', memberError);
     await supabaseService.from('campaigns').delete().eq('id', campaign.id);
-    throw new HttpError(500, 'database error');
+    throw new HttpError(500, `database error adding DM member: ${memberError.message}`);
   }
 
   return campaign.id as string;
+}
+
+interface InsertPayloadResult {
+  counts: GenerateCampaignCounts;
+  npcIds: string[];
+  characterIds: string[];
+  locationIds: string[];
 }
 
 async function insertPayload(
   campaignId: string,
   payload: CampaignPayload,
   mode: 'new' | 'populate',
-): Promise<GenerateCampaignCounts> {
+): Promise<InsertPayloadResult> {
   // On populate mode, apply any non-empty campaign-level fields from the model
   // (except the name — don't rename a campaign the user already picked).
   if (mode === 'populate') {
@@ -342,7 +366,10 @@ async function insertPayload(
         .from('campaigns')
         .update(update)
         .eq('id', campaignId);
-      if (error) throw new HttpError(500, 'database error');
+      if (error) {
+        console.error('[insertPayload] campaign update error:', error);
+        throw new HttpError(500, `database error updating campaign: ${error.message}`);
+      }
     }
   }
 
@@ -376,7 +403,7 @@ async function insertPayload(
   );
 
   // 3. Locations — two-pass to resolve parent_ref (self-reference).
-  const locationIds = await insertBatch(
+  const locationIdMap = await insertBatch(
     'locations',
     payload.locations.map((l) => ({
       campaign_id: campaignId,
@@ -390,18 +417,22 @@ async function insertPayload(
   );
   for (const loc of payload.locations) {
     if (!loc.parent_ref) continue;
-    const childId = locationIds[loc.ref];
-    const parentId = locationIds[loc.parent_ref];
+    const childId = locationIdMap[loc.ref];
+    const parentId = locationIdMap[loc.parent_ref];
     if (!childId || !parentId) continue;
     const { error } = await supabaseService
       .from('locations')
       .update({ parent_location_id: parentId })
       .eq('id', childId);
-    if (error) throw new HttpError(500, 'database error');
+    if (error) {
+      console.error('[insertPayload] location parent update error:', error);
+      throw new HttpError(500, `database error updating location parent: ${error.message}`);
+    }
   }
 
   // 4. NPCs — depend on factions + sessions.
-  await insertBatch(
+  const npcRefs = payload.npcs.map((_, i) => `npc-${i}`);
+  const npcIdMap = await insertBatch(
     'npcs',
     payload.npcs.map((n) => ({
       campaign_id: campaignId,
@@ -411,17 +442,20 @@ async function insertPayload(
       appearance: n.appearance ?? null,
       personality: n.personality ?? null,
       relationships: n.relationships ?? null,
-      status: n.status ?? 'alive',
+      status: n.status ?? 'Alive',
       faction_id: n.faction_ref ? factionIds[n.faction_ref] ?? null : null,
       first_appeared_session_id: n.first_session_ref
         ? sessionIds[n.first_session_ref] ?? null
         : null,
       dm_notes: n.dm_notes ?? null,
     })),
+    npcRefs,
   );
+  const npcIds = npcRefs.map((r) => npcIdMap[r]).filter((id): id is string => !!id);
 
   // 5. Characters — independent of the rest.
-  await insertBatch(
+  const charRefs = payload.characters.map((_, i) => `char-${i}`);
+  const charIdMap = await insertBatch(
     'characters',
     payload.characters.map((c) => ({
       campaign_id: campaignId,
@@ -436,7 +470,9 @@ async function insertPayload(
       goals_bonds: c.goals_bonds ?? null,
       dm_notes: c.dm_notes ?? null,
     })),
+    charRefs,
   );
+  const characterIds = charRefs.map((r) => charIdMap[r]).filter((id): id is string => !!id);
 
   // 6. Lore — independent of the rest.
   await insertBatch(
@@ -446,19 +482,129 @@ async function insertPayload(
       title: l.title,
       category: l.category,
       content: l.content ?? null,
-      visibility: l.visibility ?? 'public',
+      visibility: l.visibility ?? 'Public',
       dm_notes: l.dm_notes ?? null,
     })),
   );
 
+  const locIds = payload.locations.map((l) => locationIdMap[l.ref]).filter((id): id is string => !!id);
+
   return {
-    factions: payload.factions.length,
-    sessions: payload.sessions.length,
-    locations: payload.locations.length,
-    npcs: payload.npcs.length,
-    characters: payload.characters.length,
-    lore: payload.lore.length,
+    counts: {
+      factions: payload.factions.length,
+      sessions: payload.sessions.length,
+      locations: payload.locations.length,
+      npcs: payload.npcs.length,
+      characters: payload.characters.length,
+      lore: payload.lore.length,
+    },
+    npcIds,
+    characterIds,
+    locationIds: locIds,
   };
+}
+
+// ─── Bulk image generation ───────────────────────────────────────────────────
+
+const IMAGE_STYLE = 'Fantasy tabletop RPG illustration, painterly style, detailed.';
+
+async function generateImagesForCampaign(
+  campaignId: string,
+  payload: CampaignPayload,
+  ids: { npcIds: string[]; characterIds: string[]; locationIds: string[] },
+  userId: string,
+): Promise<void> {
+  interface ImageTask {
+    prompt: string;
+    table: 'campaigns' | 'npcs' | 'characters' | 'locations';
+    column: string;
+    id: string;
+  }
+
+  const tasks: ImageTask[] = [];
+
+  // Campaign cover
+  const campaignDesc = payload.campaign.description ? ` ${payload.campaign.description}` : '';
+  const systemStr = payload.campaign.system ? ` (${payload.campaign.system})` : '';
+  tasks.push({
+    prompt: `${IMAGE_STYLE} Campaign cover art for "${payload.campaign.name}"${systemStr}.${campaignDesc}`,
+    table: 'campaigns',
+    column: 'cover_image_url',
+    id: campaignId,
+  });
+
+  // NPC portraits
+  for (let i = 0; i < ids.npcIds.length; i++) {
+    const n = payload.npcs[i];
+    if (!n) continue;
+    const role = n.role_title ? `, ${n.role_title}` : '';
+    const appearance = n.appearance ? ` ${n.appearance}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Character portrait of ${n.name}${role}.${appearance}`,
+      table: 'npcs',
+      column: 'portrait_url',
+      id: ids.npcIds[i],
+    });
+  }
+
+  // Character portraits
+  for (let i = 0; i < ids.characterIds.length; i++) {
+    const c = payload.characters[i];
+    if (!c) continue;
+    const race = c.race_species ? ` ${c.race_species}` : '';
+    const cls = c.class ? ` ${c.class}` : '';
+    const appearance = c.appearance ? ` ${c.appearance}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Character portrait of ${c.name},${race}${cls}.${appearance}`,
+      table: 'characters',
+      column: 'portrait_url',
+      id: ids.characterIds[i],
+    });
+  }
+
+  // Location art
+  for (let i = 0; i < ids.locationIds.length; i++) {
+    const l = payload.locations[i];
+    if (!l) continue;
+    const typeLabel = l.type ? ` ${l.type}` : '';
+    const desc = l.description ? ` ${l.description}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE}${typeLabel ? ` A${typeLabel}` : ''} named "${l.name}".${desc}`,
+      table: 'locations',
+      column: 'map_image_url',
+      id: ids.locationIds[i],
+    });
+  }
+
+  console.log(`[generateImagesForCampaign] generating ${tasks.length} images`);
+
+  const results = await Promise.allSettled(
+    tasks.map((task) => generateImage({ prompt: task.prompt, userId })),
+  );
+
+  await Promise.allSettled(
+    results.map(async (result, i) => {
+      const task = tasks[i];
+      if (result.status === 'rejected') {
+        console.error(`[generateImagesForCampaign] image failed for ${task.table}/${task.id}:`, result.reason);
+        return;
+      }
+      const path = result.value.path;
+      let error: { message: string } | null = null;
+      if (task.table === 'campaigns') {
+        ({ error } = await supabaseService.from('campaigns').update({ cover_image_url: path }).eq('id', task.id));
+      } else if (task.table === 'npcs') {
+        ({ error } = await supabaseService.from('npcs').update({ portrait_url: path }).eq('id', task.id));
+      } else if (task.table === 'characters') {
+        ({ error } = await supabaseService.from('characters').update({ portrait_url: path }).eq('id', task.id));
+      } else if (task.table === 'locations') {
+        ({ error } = await supabaseService.from('locations').update({ map_image_url: path }).eq('id', task.id));
+      }
+      if (error) {
+        console.error(`[generateImagesForCampaign] DB update failed for ${task.table}/${task.id}:`, error);
+      }
+    }),
+  );
 }
 
 // Inserts `rows` and, if `refs` is provided, returns a map of ref → inserted id.
@@ -468,11 +614,15 @@ async function insertBatch(
   refs?: string[],
 ): Promise<Record<string, string>> {
   if (rows.length === 0) return {};
+  console.log(`[insertBatch] ${table}:`, JSON.stringify(rows, null, 2));
   const { data, error } = await supabaseService
     .from(table)
     .insert(rows as never)
     .select('id');
-  if (error || !data) throw new HttpError(500, 'database error');
+  if (error || !data) {
+    console.error(`[insertBatch] ${table} error:`, error);
+    throw new HttpError(500, `database error inserting ${table}: ${error?.message ?? 'no data'}`);
+  }
   if (!refs) return {};
   const map: Record<string, string> = {};
   for (let i = 0; i < refs.length && i < data.length; i += 1) {
@@ -491,7 +641,7 @@ aiRouter.post('/generate-field', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { campaign_id, entity_type, field_name, entity_draft, user_hint } = parsed.data;
+    const { campaign_id, entity_type, field_name, entity_draft, user_hint, provider } = parsed.data;
 
     const role = await getCampaignRole(userId, campaign_id);
     if (!role) throw new NotFoundError();
@@ -501,7 +651,7 @@ aiRouter.post('/generate-field', async (req, res) => {
     const system = `You write content for a tabletop RPG campaign manager. Return ONLY the requested field text — no labels, no JSON, no markdown headings, no surrounding quotes. Plain prose that can be dropped directly into the field.\n\nCampaign snapshot (for reference — do not restate it in the output):\n${JSON.stringify(snapshot, null, 2)}`;
     const user = buildFieldPrompt(entity_type, field_name, entity_draft, user_hint);
 
-    const text = await generateText({ system, user });
+    const text = await generateText({ system, user, provider });
     res.json(GenerateFieldResponse.parse({ text }));
   } catch (err) {
     sendError(res, err);
@@ -579,4 +729,89 @@ async function fetchCampaignSnapshot(campaignId: string): Promise<CampaignSnapsh
       type: l.type ?? undefined,
     })),
   };
+}
+
+// ─── POST /ai/generate-image ─────────────────────────────────────────────────
+
+aiRouter.post('/generate-image', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+
+    const parsed = GenerateImageRequest.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ValidationError('invalid body', parsed.error.flatten());
+    }
+    const { campaign_id, entity_type, entity_id, prompt_hint } = parsed.data;
+
+    const role = await getCampaignRole(userId, campaign_id);
+    if (!role) throw new NotFoundError();
+    if (role !== 'dm') throw new ForbiddenError();
+
+    const prompt = await buildImagePrompt(entity_type, entity_id, prompt_hint);
+
+    const { path, url, expires_at } = await generateImage({ prompt, userId });
+
+    res.status(201).json(GenerateImageResponse.parse({ path, url, expires_at }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+async function buildImagePrompt(
+  entityType: string,
+  entityId: string,
+  hint: string | undefined,
+): Promise<string> {
+  const hintSuffix = hint?.trim() ? ` ${hint.trim()}` : '';
+  const style = 'Fantasy tabletop RPG illustration, painterly style, detailed.';
+
+  if (entityType === 'campaign') {
+    const { data } = await supabaseService
+      .from('campaigns')
+      .select('name, system, description')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const desc = data.description ? ` ${data.description}` : '';
+    return `${style} Campaign cover art for "${data.name}"${data.system ? ` (${data.system})` : ''}.${desc}${hintSuffix}`;
+  }
+
+  if (entityType === 'location') {
+    const { data } = await supabaseService
+      .from('locations')
+      .select('name, type, description')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const typeLabel = data.type ? ` ${data.type}` : '';
+    const desc = data.description ? ` ${data.description}` : '';
+    return `${style}${typeLabel ? ` A${typeLabel}` : ''} named "${data.name}".${desc}${hintSuffix}`;
+  }
+
+  if (entityType === 'npc') {
+    const { data } = await supabaseService
+      .from('npcs')
+      .select('name, role_title, appearance')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const role = data.role_title ? `, ${data.role_title}` : '';
+    const appearance = data.appearance ? ` ${data.appearance}` : '';
+    return `${style} Character portrait of ${data.name}${role}.${appearance}${hintSuffix}`;
+  }
+
+  if (entityType === 'character') {
+    const { data } = await supabaseService
+      .from('characters')
+      .select('name, race_species, class, appearance')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const race = data.race_species ? ` ${data.race_species}` : '';
+    const cls = data.class ? ` ${data.class}` : '';
+    const appearance = data.appearance ? ` ${data.appearance}` : '';
+    return `${style} Character portrait of ${data.name},${race}${cls}.${appearance}${hintSuffix}`;
+  }
+
+  throw new HttpError(400, 'unsupported entity type');
 }

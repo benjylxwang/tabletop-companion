@@ -3,6 +3,7 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { GenerateCampaignMode } from '@tabletop/shared';
 import { generateCampaignAi } from '../lib/api';
+import { useAIProvider } from '../contexts/AIProviderContext';
 import { Button, FormField, Modal, Textarea } from '.';
 import { useDevGeneratorShortcut } from '../hooks/useDevGeneratorShortcut';
 
@@ -10,15 +11,16 @@ export function DevGeneratorModal() {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<GenerateCampaignMode>('new');
   const [seed, setSeed] = useState('');
+  const [generateImages, setGenerateImages] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const campaignMatch = useMatch('/campaigns/:id/*');
   const currentCampaignId = campaignMatch?.params.id ?? null;
+  const { provider, setProvider } = useAIProvider();
 
   const onShortcut = useCallback(() => {
     setOpen((v) => !v);
-    // Default to populate when opened from within a campaign.
     setMode(currentCampaignId ? 'populate' : 'new');
   }, [currentCampaignId]);
   useDevGeneratorShortcut(onShortcut);
@@ -29,6 +31,8 @@ export function DevGeneratorModal() {
         mode,
         campaign_id: mode === 'populate' ? currentCampaignId ?? undefined : undefined,
         seed: seed.trim() || undefined,
+        provider,
+        generate_images: generateImages || undefined,
       }),
     onSuccess: ({ campaign_id }) => {
       void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
@@ -53,6 +57,44 @@ export function DevGeneratorModal() {
       size="lg"
     >
       <div className="flex flex-col gap-4">
+        {/* Provider toggle */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-ink-500 uppercase tracking-wide">AI Provider</p>
+          <div
+            className="flex rounded-md overflow-hidden border border-[#3d2a10] text-xs"
+            role="group"
+            aria-label="AI provider"
+          >
+            <button
+              onClick={() => setProvider('anthropic')}
+              aria-pressed={provider === 'anthropic'}
+              disabled={mutation.isPending}
+              className={[
+                'flex flex-1 items-center justify-center py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
+                provider === 'anthropic'
+                  ? 'bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-semibold'
+                  : 'bg-[#2a1a0a] text-[#b8860b] hover:text-[#f5f0e0]',
+              ].join(' ')}
+            >
+              Claude (Anthropic)
+            </button>
+            <button
+              onClick={() => setProvider('deepinfra')}
+              aria-pressed={provider === 'deepinfra'}
+              disabled={mutation.isPending}
+              className={[
+                'flex flex-1 items-center justify-center py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
+                provider === 'deepinfra'
+                  ? 'bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-semibold'
+                  : 'bg-[#2a1a0a] text-[#b8860b] hover:text-[#f5f0e0]',
+              ].join(' ')}
+            >
+              DeepInfra
+            </button>
+          </div>
+        </div>
+
+        {/* Mode */}
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-ink-500 uppercase tracking-wide">Mode</p>
           <div className="flex flex-col gap-2">
@@ -114,6 +156,23 @@ export function DevGeneratorModal() {
           />
         </FormField>
 
+        {/* Generate images */}
+        <label className="flex items-start gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={generateImages}
+            onChange={(e) => setGenerateImages(e.target.checked)}
+            disabled={mutation.isPending}
+            className="mt-0.5 accent-[#d4a017]"
+          />
+          <div>
+            <p className="text-sm font-medium text-ink-900">Generate images</p>
+            <p className="text-xs text-ink-500">
+              Generates cover art, NPC portraits, character portraits, and location art via DeepInfra FLUX. Adds ~2–3 min.
+            </p>
+          </div>
+        </label>
+
         {mutation.error && (
           <p role="alert" className="text-sm text-crimson-600">
             Generation failed: {mutation.error.message}
@@ -122,7 +181,7 @@ export function DevGeneratorModal() {
 
         {mutation.isPending && (
           <p className="text-xs text-ink-500">
-            Generating… this typically takes 15–30 seconds.
+            Generating… this typically takes {generateImages ? '2–3 minutes' : '15–30 seconds'}.
           </p>
         )}
 

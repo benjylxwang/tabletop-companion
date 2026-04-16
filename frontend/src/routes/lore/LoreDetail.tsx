@@ -40,6 +40,7 @@ const CATEGORY_OPTIONS: { value: LoreCategoryEnum; label: string }[] = [
   { value: 'Magic', label: 'Magic' },
   { value: 'Religion', label: 'Religion' },
   { value: 'Politics', label: 'Politics' },
+  { value: 'Other', label: 'Other' },
 ];
 
 const VISIBILITY_OPTIONS: { value: LoreVisibilityEnum; label: string }[] = [

@@ -9,11 +9,13 @@ import {
   updateNpc,
   deleteNpc,
 } from '../../lib/api';
+import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
   Button,
   ConfirmModal,
   FormField,
+  GenerateImageButton,
   TextInput,
   Textarea,
   Select,
@@ -85,6 +87,9 @@ export default function NpcDetail() {
   const [dmNotes, setDmNotes] = useState('');
   const [factionId, setFactionId] = useState('');
   const [firstAppearedSessionId, setFirstAppearedSessionId] = useState('');
+  const [portraitPath, setPortraitPath] = useState<string | null>(null);
+
+  const portraitSignedUrl = useSignedUrl(npc?.portrait_url);
 
   function openEdit() {
     if (!npc) return;
@@ -98,6 +103,7 @@ export default function NpcDetail() {
     setDmNotes(npc.dm_notes ?? '');
     setFactionId(npc.faction?.id ?? '');
     setFirstAppearedSessionId(npc.first_appeared_session?.id ?? '');
+    setPortraitPath(npc.portrait_url ?? null);
     setEditing(true);
   }
 
@@ -114,6 +120,7 @@ export default function NpcDetail() {
         dm_notes: dmNotes || undefined,
         faction_id: factionId || undefined,
         first_appeared_session_id: firstAppearedSessionId || undefined,
+        portrait_url: portraitPath ?? undefined,
       }),
     onSuccess: (updated) => {
       queryClient.setQueryData(['npc', campaignId, npcId, viewMode], updated);
@@ -220,6 +227,19 @@ export default function NpcDetail() {
             />
           </FormField>
 
+          <FormField label="Portrait" htmlFor="edit-npc-portrait" hint="AI-generated portrait image">
+            <GenerateImageButton
+              campaignId={campaignId!}
+              entityType="npc"
+              entityId={npcId!}
+              fieldName="portrait_url"
+              onGenerated={(path) => setPortraitPath(path)}
+            />
+            {portraitPath && (
+              <p className="mt-1 text-xs text-slate-500 truncate">{portraitPath}</p>
+            )}
+          </FormField>
+
           {!isPlayerView && (
             <FormField
               label="DM Notes"
@@ -314,6 +334,16 @@ export default function NpcDetail() {
           </div>
         )}
       </div>
+
+      {npc.portrait_url && portraitSignedUrl.url && (
+        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
+          <img
+            src={portraitSignedUrl.url}
+            alt={`Portrait of ${npc.name}`}
+            className="w-full max-h-96 object-contain"
+          />
+        </div>
+      )}
 
       <div className="mt-6 space-y-5">
         {npc.alignment && <Field label="Alignment" value={npc.alignment} />}

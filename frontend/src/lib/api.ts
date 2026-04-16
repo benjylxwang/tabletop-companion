@@ -8,6 +8,10 @@ import {
   CampaignResponse,
   CampaignsResponse,
   CampaignOverviewResponse,
+  CharacterCreate,
+  CharacterResponse,
+  CharacterUpdate,
+  CharactersResponse,
   FactionCreate,
   FactionResponse,
   FactionUpdate,
@@ -15,6 +19,7 @@ import {
   FactionWithRefsResponse,
   GenerateCampaignResponse,
   GenerateFieldResponse,
+  GenerateImageResponse,
   HealthResponse,
   LocationCreate,
   LocationResponse,
@@ -41,10 +46,13 @@ import {
   AddFactionRelationship,
   AddLoreReference,
   LoreReferenceEntityTypeEnum,
+  SignedUrlResponse,
+  UploadResponse,
 } from '@tabletop/shared';
 import type {
   GenerateCampaignRequest,
   GenerateFieldRequest,
+  GenerateImageRequest,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabase } from './supabase';
@@ -303,6 +311,188 @@ export async function deleteSession(campaignId: string, sessionId: string): Prom
   if (!res.ok) throw new Error(`delete session ${res.status}`);
 }
 
+// ─── Characters ───────────────────────────────────────────────────────────────
+
+export async function fetchCharacters(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<CharactersResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/characters${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`characters ${res.status}`);
+  return CharactersResponse.parse(await res.json());
+}
+
+export async function fetchCharacter(
+  campaignId: string,
+  characterId: string,
+  viewMode: ViewMode,
+): Promise<CharacterResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/characters/${characterId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`character ${res.status}`);
+  return CharacterResponse.parse(await res.json());
+}
+
+export async function createCharacter(
+  campaignId: string,
+  data: CharacterCreate,
+): Promise<CharacterResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/characters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create character ${res.status}`);
+  return CharacterResponse.parse(await res.json());
+}
+
+export async function updateCharacter(
+  campaignId: string,
+  characterId: string,
+  data: CharacterUpdate,
+): Promise<CharacterResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/characters/${characterId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  );
+  if (!res.ok) throw new Error(`update character ${res.status}`);
+  return CharacterResponse.parse(await res.json());
+}
+
+export async function deleteCharacter(
+  campaignId: string,
+  characterId: string,
+): Promise<void> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/characters/${characterId}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) throw new Error(`delete character ${res.status}`);
+}
+
+// ─── Lore ────────────────────────────────────────────────────────────────────
+
+export async function fetchLoreEntries(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<LoreListResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/lore${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreListResponse.parse(await res.json());
+}
+
+export async function fetchLoreEntry(
+  campaignId: string,
+  loreId: string,
+  viewMode: ViewMode,
+): Promise<LoreResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/lore/${loreId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function createLoreEntry(
+  campaignId: string,
+  data: Omit<LoreCreate, 'campaign_id'>,
+): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function updateLoreEntry(
+  campaignId: string,
+  loreId: string,
+  data: Omit<LoreUpdate, 'campaign_id'>,
+): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function deleteLoreEntry(
+  campaignId: string,
+  loreId: string,
+): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete lore ${res.status}`);
+}
+
+// ─── Uploads ──────────────────────────────────────────────────────────────────
+
+// Uses XHR (rather than fetch) so the caller can observe upload progress — fetch
+// streaming upload support is still spotty across browsers.
+export async function uploadFile(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<UploadResponse> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const form = new FormData();
+  form.append('file', file);
+
+  return new Promise<UploadResponse>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${baseUrl}/api/uploads`);
+    if (token) xhr.setRequestHeader('authorization', `Bearer ${token}`);
+
+    xhr.upload.onprogress = (evt) => {
+      if (evt.lengthComputable && onProgress) {
+        onProgress(Math.round((evt.loaded / evt.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const body = JSON.parse(xhr.responseText);
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const errorMessage =
+            typeof body?.error === 'string' ? body.error : `upload ${xhr.status}`;
+          reject(new Error(errorMessage));
+          return;
+        }
+        resolve(UploadResponse.parse(body));
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error('upload parse failed'));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('upload network error'));
+    xhr.send(form);
+  });
+}
+
+export async function getSignedUrl(path: string): Promise<SignedUrlResponse> {
+  const res = await authedFetch('/api/uploads/sign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) throw new Error(`sign url ${res.status}`);
+  return SignedUrlResponse.parse(await res.json());
+}
+
 // ─── AI ──────────────────────────────────────────────────────────────────────
 
 export async function generateCampaignAi(
@@ -333,6 +523,21 @@ export async function generateFieldAi(
     throw new Error(body.error ?? `generate field ${res.status}`);
   }
   return GenerateFieldResponse.parse(await res.json());
+}
+
+export async function generateImageAi(
+  req: GenerateImageRequest,
+): Promise<GenerateImageResponse> {
+  const res = await authedFetch('/api/ai/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `generate image ${res.status}`);
+  }
+  return GenerateImageResponse.parse(await res.json());
 }
 
 export async function fetchCampaignInvitations(campaignId: string): Promise<CampaignPendingInvitationsResponse> {

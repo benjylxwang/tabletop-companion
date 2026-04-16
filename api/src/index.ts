@@ -8,13 +8,15 @@ import { configRouter } from './routes/config.js';
 import { aiRouter } from './routes/ai.js';
 import { campaignsRouter } from './routes/campaigns.js';
 import { charactersRouter } from './routes/characters.js';
+import { factionsRouter } from './routes/factions.js';
 import { invitationsRouter } from './routes/invitations.js';
 import { locationsRouter } from './routes/locations.js';
 import { loreRouter } from './routes/lore.js';
 import { npcsRouter } from './routes/npcs.js';
 import { sessionsRouter } from './routes/sessions.js';
-import { factionsRouter } from './routes/factions.js';
+import { uploadsRouter } from './routes/uploads.js';
 import { meRouter } from './routes/me.js';
+import { ensureUploadsBucket } from './lib/uploadsBucket.js';
 
 const app = express();
 
@@ -44,15 +46,22 @@ app.use(configRouter);
 app.use('/api', authMiddleware, meRouter);
 app.use('/api', authMiddleware, campaignsRouter);
 app.use('/api', authMiddleware, charactersRouter);
+app.use('/api', authMiddleware, factionsRouter);
 app.use('/api', authMiddleware, invitationsRouter);
 app.use('/api', authMiddleware, locationsRouter);
 app.use('/api', authMiddleware, loreRouter);
 app.use('/api', authMiddleware, npcsRouter);
 app.use('/api', authMiddleware, sessionsRouter);
-app.use('/api', authMiddleware, factionsRouter);
 app.use('/api/ai', authMiddleware, aiRouter);
+app.use('/api/uploads', authMiddleware, uploadsRouter);
 
 const port = Number(process.env.PORT) || 3000;
-app.listen(port, () => {
+const server = app.listen(port, async () => {
   console.log(`api listening on :${port}`);
+  try {
+    await ensureUploadsBucket();
+  } catch (err) {
+    console.error('failed to ensure uploads bucket on startup', err);
+  }
 });
+server.keepAliveTimeout = 65_000;

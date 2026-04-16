@@ -22,6 +22,7 @@ const CATEGORY_OPTIONS: { value: LoreCategoryEnum; label: string }[] = [
   { value: 'Magic', label: 'Magic' },
   { value: 'Religion', label: 'Religion' },
   { value: 'Politics', label: 'Politics' },
+  { value: 'Other', label: 'Other' },
 ];
 
 const VISIBILITY_OPTIONS: { value: LoreVisibilityEnum; label: string }[] = [
@@ -37,6 +38,7 @@ const CATEGORY_BADGE: Record<LoreCategoryEnum, string> = {
   Magic: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
   Religion: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
   Politics: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+  Other: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
 };
 
 const VISIBILITY_BADGE: Record<LoreVisibilityEnum, string> = {

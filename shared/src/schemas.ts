@@ -41,7 +41,7 @@ export type RoleEnum = z.infer<typeof RoleEnum>;
 export const NpcStatusEnum = z.enum(['Alive', 'Dead', 'Unknown']);
 export type NpcStatusEnum = z.infer<typeof NpcStatusEnum>;
 
-export const LoreCategoryEnum = z.enum(['History', 'Magic', 'Religion', 'Politics']);
+export const LoreCategoryEnum = z.enum(['History', 'Magic', 'Religion', 'Politics', 'Other']);
 export type LoreCategoryEnum = z.infer<typeof LoreCategoryEnum>;
 
 export const LoreVisibilityEnum = z.enum(['Public', 'Private', 'Revealed']);
@@ -67,7 +67,13 @@ export type CampaignPlayer = z.infer<typeof CampaignPlayer>;
 export const CampaignCreate = Campaign.omit({ id: true, created_at: true });
 export type CampaignCreate = z.infer<typeof CampaignCreate>;
 
-export const CampaignUpdate = CampaignCreate.partial();
+// `cover_image_url` uses `.nullish()` so clients can send `null` to clear an
+// uploaded cover (partial updates drop `undefined`, so `null` is the only way
+// to tell the server "set this to NULL"). Other fields remain optional to
+// avoid broadening clear-semantics beyond what the rest of the form needs.
+export const CampaignUpdate = CampaignCreate.partial().extend({
+  cover_image_url: z.string().nullish(),
+});
 export type CampaignUpdate = z.infer<typeof CampaignUpdate>;
 
 export const CampaignWithRole = Campaign.extend({ my_role: RoleEnum });
@@ -184,6 +190,7 @@ export const Character = z.object({
   personality: z.string().nullish(),
   goals_bonds: z.string().nullish(),
   character_sheet_url: z.string().nullish(),
+  portrait_url: z.string().nullish(),
   journal: z.string().nullish(),
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().nullish(),
@@ -219,6 +226,7 @@ export const Npc = z.object({
   status: NpcStatusEnum,
   first_appeared_session_id: z.string().optional(),
   faction_id: z.string().optional(),
+  portrait_url: z.string().optional(),
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
@@ -321,6 +329,36 @@ export type FactionsResponse = z.infer<typeof FactionsResponse>;
 
 export const FactionResponse = z.object({ faction: Faction });
 export type FactionResponse = z.infer<typeof FactionResponse>;
+
+// ─── Uploads ─────────────────────────────────────────────────────────────────
+//
+// Files live in a private Supabase Storage bucket. The API returns a short-lived
+// signed URL for immediate display plus the opaque storage `path` that's safe to
+// persist on domain rows (URLs expire; paths don't). Entity columns like
+// `cover_image_url` / `character_sheet_url` / `map_image_url` therefore store the
+// path — the frontend calls `/api/uploads/sign` to get a fresh signed URL when
+// rendering.
+
+export const UPLOAD_MIME_TYPES = ['image/png', 'image/jpeg', 'application/pdf'] as const;
+export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export const UploadResponse = z.object({
+  path: z.string(),
+  url: z.string().url(),
+  expiresAt: z.string().datetime({ offset: true }),
+  contentType: z.enum(UPLOAD_MIME_TYPES),
+  size: z.number().int().nonnegative(),
+});
+export type UploadResponse = z.infer<typeof UploadResponse>;
+
+export const SignedUrlRequest = z.object({ path: z.string().min(1) });
+export type SignedUrlRequest = z.infer<typeof SignedUrlRequest>;
+
+export const SignedUrlResponse = z.object({
+  url: z.string().url(),
+  expiresAt: z.string().datetime({ offset: true }),
+});
+export type SignedUrlResponse = z.infer<typeof SignedUrlResponse>;
 
 // ─── Lore ────────────────────────────────────────────────────────────────────
 
@@ -504,11 +542,16 @@ export type CampaignOverviewResponse = z.infer<typeof CampaignOverviewResponse>;
 export const GenerateCampaignMode = z.enum(['new', 'populate']);
 export type GenerateCampaignMode = z.infer<typeof GenerateCampaignMode>;
 
+export const AIProvider = z.enum(['anthropic', 'deepinfra']);
+export type AIProvider = z.infer<typeof AIProvider>;
+
 export const GenerateCampaignRequest = z
   .object({
     mode: GenerateCampaignMode,
     campaign_id: z.string().optional(),
     seed: z.string().max(500).optional(),
+    provider: AIProvider.optional(),
+    generate_images: z.boolean().optional(),
   })
   .refine((v) => v.mode === 'new' || !!v.campaign_id, {
     message: 'campaign_id is required when mode is "populate"',
@@ -549,8 +592,33 @@ export const GenerateFieldRequest = z.object({
   field_name: z.string().min(1).max(100),
   entity_draft: z.record(z.unknown()).optional(),
   user_hint: z.string().max(500).optional(),
+  provider: AIProvider.optional(),
 });
 export type GenerateFieldRequest = z.infer<typeof GenerateFieldRequest>;
 
 export const GenerateFieldResponse = z.object({ text: z.string() });
 export type GenerateFieldResponse = z.infer<typeof GenerateFieldResponse>;
+
+// ─── AI image generator ───────────────────────────────────────────────────────
+
+export const GenerateImageEntityType = z.enum(['campaign', 'location', 'npc', 'character']);
+export type GenerateImageEntityType = z.infer<typeof GenerateImageEntityType>;
+
+export const GenerateImageFieldName = z.enum(['cover_image_url', 'map_image_url', 'portrait_url']);
+export type GenerateImageFieldName = z.infer<typeof GenerateImageFieldName>;
+
+export const GenerateImageRequest = z.object({
+  campaign_id: z.string(),
+  entity_type: GenerateImageEntityType,
+  entity_id: z.string(),
+  field_name: GenerateImageFieldName,
+  prompt_hint: z.string().max(500).optional(),
+});
+export type GenerateImageRequest = z.infer<typeof GenerateImageRequest>;
+
+export const GenerateImageResponse = z.object({
+  path: z.string(),
+  url: z.string(),
+  expires_at: z.string(),
+});
+export type GenerateImageResponse = z.infer<typeof GenerateImageResponse>;

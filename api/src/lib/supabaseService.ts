@@ -17,7 +17,7 @@ export const supabaseService: SupabaseClient<Database> = createClient<Database>(
 
 // Look up a user by email via the profiles table (a public mirror of auth.users
 // populated by a trigger on sign-up). The service role bypasses RLS so this
-// returns any registered user's id, or null if no account exists.
+// returns any registered user's id, or null if no account exists with that email.
 export async function getUserByEmail(email: string): Promise<{ id: string } | null> {
   const { data } = await supabaseService
     .from('profiles')
