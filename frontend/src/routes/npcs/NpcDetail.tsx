@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCampaign,
   fetchNpc,
+  fetchFactions,
+  fetchSessions,
   updateNpc,
   deleteNpc,
 } from '../../lib/api';
@@ -20,7 +22,7 @@ import {
   Spinner,
   ErrorDisplay,
 } from '../../components';
-import type { NpcStatusEnum } from '@tabletop/shared';
+import type { NpcStatusEnum, NpcWithRefsResponse } from '@tabletop/shared';
 import { StatusBadge } from './NpcList';
 
 const STATUS_OPTIONS: { value: NpcStatusEnum; label: string }[] = [
@@ -55,12 +57,24 @@ export default function NpcDetail() {
   });
   const isDm = campaignQuery.data?.campaign.my_role === 'dm';
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<NpcWithRefsResponse>({
     queryKey: ['npc', campaignId, npcId, viewMode],
     queryFn: () => fetchNpc(campaignId!, npcId!, viewMode),
     enabled: !!campaignId && !!npcId,
   });
   const npc = data?.npc;
+
+  // ─── Faction / session queries (only loaded when editing) ───────────────────
+  const factionsQuery = useQuery({
+    queryKey: ['factions', campaignId, viewMode],
+    queryFn: () => fetchFactions(campaignId!, viewMode),
+    enabled: !!campaignId && editing,
+  });
+  const sessionsQuery = useQuery({
+    queryKey: ['sessions', campaignId, viewMode],
+    queryFn: () => fetchSessions(campaignId!, viewMode),
+    enabled: !!campaignId && editing,
+  });
 
   // ─── Edit form state ────────────────────────────────────────────────────────
   const [name, setName] = useState('');
@@ -71,6 +85,8 @@ export default function NpcDetail() {
   const [relationships, setRelationships] = useState('');
   const [status, setStatus] = useState<NpcStatusEnum>('Alive');
   const [dmNotes, setDmNotes] = useState('');
+  const [factionId, setFactionId] = useState('');
+  const [firstAppearedSessionId, setFirstAppearedSessionId] = useState('');
   const [portraitPath, setPortraitPath] = useState<string | null>(null);
 
   const portraitSignedUrl = useSignedUrl(npc?.portrait_url);
@@ -85,6 +101,8 @@ export default function NpcDetail() {
     setRelationships(npc.relationships ?? '');
     setStatus(npc.status);
     setDmNotes(npc.dm_notes ?? '');
+    setFactionId(npc.faction?.id ?? '');
+    setFirstAppearedSessionId(npc.first_appeared_session?.id ?? '');
     setPortraitPath(npc.portrait_url ?? null);
     setEditing(true);
   }
@@ -100,6 +118,8 @@ export default function NpcDetail() {
         relationships: relationships || undefined,
         status,
         dm_notes: dmNotes || undefined,
+        faction_id: factionId || undefined,
+        first_appeared_session_id: firstAppearedSessionId || undefined,
         portrait_url: portraitPath ?? undefined,
       }),
     onSuccess: (updated) => {
@@ -235,7 +255,36 @@ export default function NpcDetail() {
             </FormField>
           )}
 
-          {/* TODO(#28): faction/session dropdowns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Faction" htmlFor="edit-npc-faction">
+              <Select
+                id="edit-npc-faction"
+                options={[
+                  { value: '', label: '— None —' },
+                  ...(factionsQuery.data?.factions ?? []).map((f) => ({
+                    value: f.id,
+                    label: f.name,
+                  })),
+                ]}
+                value={factionId}
+                onChange={setFactionId}
+              />
+            </FormField>
+            <FormField label="First appeared (session)" htmlFor="edit-npc-session">
+              <Select
+                id="edit-npc-session"
+                options={[
+                  { value: '', label: '— None —' },
+                  ...(sessionsQuery.data?.sessions ?? []).map((s) => ({
+                    value: s.id,
+                    label: `Session ${s.session_number} — ${s.title}`,
+                  })),
+                ]}
+                value={firstAppearedSessionId}
+                onChange={setFirstAppearedSessionId}
+              />
+            </FormField>
+          </div>
 
           {updateMutation.error && (
             <p role="alert" className="text-sm text-red-400">
@@ -306,31 +355,31 @@ export default function NpcDetail() {
           <Field label="Relationships" value={npc.relationships} />
         )}
 
-        {(npc.faction_id || npc.first_appeared_session_id) && (
+        {(npc.faction ?? npc.first_appeared_session) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {npc.faction_id && (
+            {npc.faction && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Faction
                 </p>
                 <Link
-                  to={`/campaigns/${campaignId}/factions/${npc.faction_id}`}
+                  to={`/campaigns/${campaignId}/factions/${npc.faction.id}`}
                   className="mt-1 inline-block text-sm text-amber-400 hover:text-amber-300 underline"
                 >
-                  View faction
+                  {npc.faction.name}
                 </Link>
               </div>
             )}
-            {npc.first_appeared_session_id && (
+            {npc.first_appeared_session && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   First appeared
                 </p>
                 <Link
-                  to={`/campaigns/${campaignId}/sessions/${npc.first_appeared_session_id}`}
+                  to={`/campaigns/${campaignId}/sessions/${npc.first_appeared_session.id}`}
                   className="mt-1 inline-block text-sm text-amber-400 hover:text-amber-300 underline"
                 >
-                  View session
+                  Session {npc.first_appeared_session.session_number} — {npc.first_appeared_session.name}
                 </Link>
               </div>
             )}

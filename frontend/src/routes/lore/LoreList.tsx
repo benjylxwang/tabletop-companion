@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCampaign, fetchLoreEntries, createLoreEntry } from '../../lib/api';
+import { fetchCampaign, fetchLores, createLore } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
   Button,
@@ -13,38 +13,45 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
-import type { LoreCategoryEnum, LoreVisibilityEnum } from '@tabletop/shared';
+import type { LoreCategoryEnum, LoreVisibilityEnum, LoreCreate } from '@tabletop/shared';
+
+// ─── Option lists ─────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS: { value: LoreCategoryEnum; label: string }[] = [
   { value: 'History', label: 'History' },
   { value: 'Magic', label: 'Magic' },
   { value: 'Religion', label: 'Religion' },
   { value: 'Politics', label: 'Politics' },
+  { value: 'Other', label: 'Other' },
 ];
 
 const VISIBILITY_OPTIONS: { value: LoreVisibilityEnum; label: string }[] = [
-  { value: 'Public', label: 'Public — visible to all players' },
-  { value: 'Revealed', label: 'Revealed — visible to specific players' },
-  { value: 'Private', label: 'Private — DM only' },
+  { value: 'Public', label: 'Public' },
+  { value: 'Private', label: 'Private' },
+  { value: 'Revealed', label: 'Revealed' },
 ];
+
+// ─── Badge styles ─────────────────────────────────────────────────────────────
 
 const CATEGORY_BADGE: Record<LoreCategoryEnum, string> = {
   History: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
   Magic: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
   Religion: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-  Politics: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+  Politics: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
   Other: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
 };
 
 const VISIBILITY_BADGE: Record<LoreVisibilityEnum, string> = {
   Public: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  Private: 'bg-red-500/10 text-red-400 border-red-500/30',
   Revealed: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  Private: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
 };
 
 export function CategoryBadge({ category }: { category: LoreCategoryEnum }) {
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${CATEGORY_BADGE[category]}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${CATEGORY_BADGE[category]}`}
+    >
       {category}
     </span>
   );
@@ -52,55 +59,59 @@ export function CategoryBadge({ category }: { category: LoreCategoryEnum }) {
 
 export function VisibilityBadge({ visibility }: { visibility: LoreVisibilityEnum }) {
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${VISIBILITY_BADGE[visibility]}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${VISIBILITY_BADGE[visibility]}`}
+    >
       {visibility}
     </span>
   );
 }
 
+// ─── Create modal ─────────────────────────────────────────────────────────────
+
 function CreateLoreModal({
   campaignId,
   open,
   onClose,
-  isDm,
 }: {
   campaignId: string;
   open: boolean;
   onClose: () => void;
-  isDm: boolean;
 }) {
   const queryClient = useQueryClient();
   const { viewMode } = useViewMode();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<LoreCategoryEnum>('History');
-  const [visibility, setVisibility] = useState<LoreVisibilityEnum>('Public');
   const [content, setContent] = useState('');
+  const [visibility, setVisibility] = useState<LoreVisibilityEnum>('Public');
   const [dmNotes, setDmNotes] = useState('');
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createLoreEntry(campaignId, {
-        title,
-        category,
-        visibility,
-        content: content || undefined,
-        dm_notes: dmNotes || undefined,
-      }),
+    mutationFn: (data: LoreCreate) => createLore(campaignId, data),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
       onClose();
       setTitle('');
       setCategory('History');
-      setVisibility('Public');
       setContent('');
+      setVisibility('Public');
       setDmNotes('');
     },
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    mutation.mutate();
+    mutation.mutate({
+      campaign_id: campaignId,
+      title,
+      category,
+      content: content || undefined,
+      visibility,
+      dm_notes: dmNotes || undefined,
+    });
   }
+
+  const isPlayerView = viewMode === 'player';
 
   return (
     <Modal open={open} onClose={onClose} title="New Lore Entry" size="lg">
@@ -111,7 +122,7 @@ function CreateLoreModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            placeholder="The Founding of the Iron Pact"
+            placeholder="The Fall of the Meridian Empire"
           />
         </FormField>
 
@@ -125,16 +136,14 @@ function CreateLoreModal({
             />
           </FormField>
 
-          {isDm && viewMode === 'dm' && (
-            <FormField label="Visibility" htmlFor="lore-visibility">
-              <Select
-                id="lore-visibility"
-                options={VISIBILITY_OPTIONS}
-                value={visibility}
-                onChange={(v) => setVisibility(v as LoreVisibilityEnum)}
-              />
-            </FormField>
-          )}
+          <FormField label="Visibility" htmlFor="lore-visibility">
+            <Select
+              id="lore-visibility"
+              options={VISIBILITY_OPTIONS}
+              value={visibility}
+              onChange={(v) => setVisibility(v as LoreVisibilityEnum)}
+            />
+          </FormField>
         </div>
 
         <FormField label="Content" htmlFor="lore-content">
@@ -143,22 +152,22 @@ function CreateLoreModal({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={4}
-            placeholder="What the players know about this topic…"
+            placeholder="Details, history, lore…"
           />
         </FormField>
 
-        {isDm && viewMode === 'dm' && (
+        {!isPlayerView && (
           <FormField
             label="DM Notes"
             htmlFor="lore-dm-notes"
-            hint="Visible to DMs only — the full truth behind the lore"
+            hint="Visible to DMs only — true secrets, plot hooks, hidden connections"
           >
             <Textarea
               id="lore-dm-notes"
               value={dmNotes}
               onChange={(e) => setDmNotes(e.target.value)}
               rows={3}
-              placeholder="What actually happened…"
+              placeholder="What only you know…"
             />
           </FormField>
         )}
@@ -182,6 +191,8 @@ function CreateLoreModal({
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function LoreList() {
   const { id: campaignId } = useParams<{ id: string }>();
   const { viewMode } = useViewMode();
@@ -195,8 +206,8 @@ export default function LoreList() {
   const isDm = campaignQuery.data?.campaign.my_role === 'dm';
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['lore', campaignId, viewMode],
-    queryFn: () => fetchLoreEntries(campaignId!, viewMode),
+    queryKey: ['lores', campaignId, viewMode],
+    queryFn: () => fetchLores(campaignId!, viewMode),
     enabled: !!campaignId,
   });
 
@@ -205,45 +216,38 @@ export default function LoreList() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Lore</h1>
-          <p className="text-sm text-slate-400 mt-0.5">World knowledge and history</p>
+          <p className="text-sm text-slate-400 mt-0.5">World knowledge, history, and secrets</p>
         </div>
-        {isDm && <Button onClick={() => setShowCreate(true)}>New Entry</Button>}
+        {isDm && <Button onClick={() => setShowCreate(true)}>New Lore Entry</Button>}
       </div>
 
       {isLoading && <p className="text-slate-400">Loading…</p>}
-      {error && <ErrorDisplay message="Failed to load lore." />}
+      {error && <ErrorDisplay message="Failed to load lore entries." />}
 
       {data && data.lore.length === 0 && (
         <EmptyState
           title="No lore yet"
           description={
             isDm
-              ? 'Start documenting your world\'s history, magic, and politics.'
-              : 'No lore has been shared yet.'
+              ? 'Create your first lore entry to start building the world.'
+              : 'The DM has not published any lore yet.'
           }
-          action={isDm ? { label: 'New Entry', onClick: () => setShowCreate(true) } : undefined}
+          action={isDm ? { label: 'New Lore Entry', onClick: () => setShowCreate(true) } : undefined}
         />
       )}
 
       {data && data.lore.length > 0 && (
-        <ul className="space-y-2 max-w-3xl">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
           {data.lore.map((entry) => (
             <li key={entry.id}>
               <Link
                 to={`/campaigns/${campaignId}/lore/${entry.id}`}
-                className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                className="block h-full rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-100 truncate">{entry.title}</p>
-                  {entry.content && (
-                    <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{entry.content}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <p className="font-semibold text-slate-100 mb-2">{entry.title}</p>
+                <div className="flex items-center gap-2 flex-wrap">
                   <CategoryBadge category={entry.category} />
-                  {isDm && entry.visibility !== 'Public' && (
-                    <VisibilityBadge visibility={entry.visibility} />
-                  )}
+                  <VisibilityBadge visibility={entry.visibility} />
                 </div>
               </Link>
             </li>
@@ -256,7 +260,6 @@ export default function LoreList() {
           campaignId={campaignId}
           open={showCreate}
           onClose={() => setShowCreate(false)}
-          isDm={!!isDm}
         />
       )}
     </div>

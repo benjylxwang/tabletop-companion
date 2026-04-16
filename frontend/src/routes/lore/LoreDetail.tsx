@@ -1,11 +1,18 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCampaign,
-  fetchLoreEntry,
-  updateLoreEntry,
-  deleteLoreEntry,
+  fetchLore,
+  updateLore,
+  deleteLore,
+  addLoreReference,
+  removeLoreReference,
+  fetchNpcs,
+  fetchLocations,
+  fetchFactions,
+  fetchSessions,
+  fetchLores,
 } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
@@ -18,30 +25,249 @@ import {
   Spinner,
   ErrorDisplay,
 } from '../../components';
-import type { LoreCategoryEnum, LoreVisibilityEnum } from '@tabletop/shared';
+import type {
+  LoreCategoryEnum,
+  LoreVisibilityEnum,
+  LoreReferenceEntityTypeEnum,
+  LoreRef,
+} from '@tabletop/shared';
 import { CategoryBadge, VisibilityBadge } from './LoreList';
+
+// ─── Option lists ─────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS: { value: LoreCategoryEnum; label: string }[] = [
   { value: 'History', label: 'History' },
   { value: 'Magic', label: 'Magic' },
   { value: 'Religion', label: 'Religion' },
   { value: 'Politics', label: 'Politics' },
+  { value: 'Other', label: 'Other' },
 ];
 
 const VISIBILITY_OPTIONS: { value: LoreVisibilityEnum; label: string }[] = [
   { value: 'Public', label: 'Public' },
-  { value: 'Revealed', label: 'Revealed' },
   { value: 'Private', label: 'Private' },
+  { value: 'Revealed', label: 'Revealed' },
 ];
 
-function Field({ label, value }: { label: string; value: string }) {
+const ENTITY_TYPE_OPTIONS: { value: LoreReferenceEntityTypeEnum; label: string }[] = [
+  { value: 'session', label: 'Session' },
+  { value: 'npc', label: 'NPC' },
+  { value: 'location', label: 'Location' },
+  { value: 'faction', label: 'Faction' },
+  { value: 'lore', label: 'Lore' },
+];
+
+// ─── Entity type → route helper ───────────────────────────────────────────────
+
+function entityPath(
+  campaignId: string,
+  entityType: LoreReferenceEntityTypeEnum,
+  entityId: string,
+): string {
+  const routes: Record<LoreReferenceEntityTypeEnum, string> = {
+    session: `/campaigns/${campaignId}/sessions/${entityId}`,
+    npc: `/campaigns/${campaignId}/npcs/${entityId}`,
+    location: `/campaigns/${campaignId}/locations/${entityId}`,
+    faction: `/campaigns/${campaignId}/factions/${entityId}`,
+    lore: `/campaigns/${campaignId}/lore/${entityId}`,
+    character: `/campaigns/${campaignId}/characters/${entityId}`,
+  };
+  return routes[entityType];
+}
+
+// ─── Related references section ───────────────────────────────────────────────
+
+function ReferencesSection({
+  campaignId,
+  loreId,
+  references,
+  isDm,
+}: {
+  campaignId: string;
+  loreId: string;
+  references: LoreRef[];
+  isDm: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
+  const [refEntityType, setRefEntityType] = useState<LoreReferenceEntityTypeEnum>('npc');
+  const [refEntityId, setRefEntityId] = useState('');
+
+  // ─── Dynamic entity list per type ────────────────────────────────────────────
+
+  const npcsQuery = useQuery({
+    queryKey: ['npcs', campaignId, viewMode],
+    queryFn: () => fetchNpcs(campaignId, viewMode),
+    enabled: isDm && refEntityType === 'npc',
+  });
+
+  const locationsQuery = useQuery({
+    queryKey: ['locations', campaignId, viewMode],
+    queryFn: () => fetchLocations(campaignId, viewMode),
+    enabled: isDm && refEntityType === 'location',
+  });
+
+  const factionsQuery = useQuery({
+    queryKey: ['factions', campaignId, viewMode],
+    queryFn: () => fetchFactions(campaignId, viewMode),
+    enabled: isDm && refEntityType === 'faction',
+  });
+
+  const sessionsQuery = useQuery({
+    queryKey: ['sessions', campaignId, viewMode],
+    queryFn: () => fetchSessions(campaignId, viewMode),
+    enabled: isDm && refEntityType === 'session',
+  });
+
+  const loresQuery = useQuery({
+    queryKey: ['lores', campaignId, viewMode],
+    queryFn: () => fetchLores(campaignId, viewMode),
+    enabled: isDm && refEntityType === 'lore',
+  });
+
+  type EntityOption = { value: string; label: string };
+
+  function getEntityOptions(): EntityOption[] {
+    switch (refEntityType) {
+      case 'npc':
+        return (npcsQuery.data?.npcs ?? []).map((e) => ({ value: e.id, label: e.name }));
+      case 'location':
+        return (locationsQuery.data?.locations ?? []).map((e) => ({ value: e.id, label: e.name }));
+      case 'faction':
+        return (factionsQuery.data?.factions ?? []).map((e) => ({ value: e.id, label: e.name }));
+      case 'session':
+        return (sessionsQuery.data?.sessions ?? []).map((e) => ({
+          value: e.id,
+          label: `Session ${e.session_number} — ${e.title}`,
+        }));
+      case 'lore':
+        return (loresQuery.data?.lore ?? [])
+          .filter((e) => e.id !== loreId)
+          .map((e) => ({ value: e.id, label: e.title }));
+      default:
+        return [];
+    }
+  }
+
+  const entityOptions = getEntityOptions();
+
+  const addMutation = useMutation({
+    mutationFn: () =>
+      addLoreReference(campaignId, loreId, {
+        entity_type: refEntityType,
+        entity_id: refEntityId,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId, loreId] });
+      setRefEntityId('');
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: ({
+      entityType,
+      entityId,
+    }: {
+      entityType: LoreReferenceEntityTypeEnum;
+      entityId: string;
+    }) => removeLoreReference(campaignId, loreId, entityType, entityId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId, loreId] });
+    },
+  });
+
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-sm text-slate-300 whitespace-pre-wrap">{value}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+        Related
+      </p>
+
+      {references.length === 0 && (
+        <p className="text-sm text-slate-500 italic">No references yet.</p>
+      )}
+
+      {references.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {references.map((ref) => (
+            <div
+              key={`${ref.entity_type}-${ref.entity_id}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-1"
+            >
+              <Link
+                to={entityPath(campaignId, ref.entity_type, ref.entity_id)}
+                className="text-sm text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                {ref.entity_name}
+              </Link>
+              <span className="text-xs text-slate-500 capitalize">{ref.entity_type}</span>
+              {isDm && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    removeMutation.mutate({
+                      entityType: ref.entity_type,
+                      entityId: ref.entity_id,
+                    })
+                  }
+                  className="ml-1 text-slate-500 hover:text-red-400 transition-colors text-xs leading-none"
+                  aria-label={`Remove reference to ${ref.entity_name}`}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isDm && (
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="w-36">
+            <Select
+              id="ref-entity-type"
+              options={ENTITY_TYPE_OPTIONS}
+              value={refEntityType}
+              onChange={(v) => {
+                setRefEntityType(v as LoreReferenceEntityTypeEnum);
+                setRefEntityId('');
+              }}
+            />
+          </div>
+
+          <div className="flex-1 min-w-40">
+            <Select
+              id="ref-entity-id"
+              options={[
+                { value: '', label: 'Select…' },
+                ...entityOptions,
+              ]}
+              value={refEntityId}
+              onChange={(v) => setRefEntityId(v)}
+            />
+          </div>
+
+          <Button
+            type="button"
+            size="sm"
+            disabled={!refEntityId}
+            isLoading={addMutation.isPending}
+            onClick={() => addMutation.mutate()}
+          >
+            Add
+          </Button>
+        </div>
+      )}
+
+      {addMutation.error && (
+        <p role="alert" className="mt-2 text-sm text-red-400">
+          Failed to add reference. Please try again.
+        </p>
+      )}
     </div>
   );
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LoreDetail() {
   const { id: campaignId, loreId } = useParams<{ id: string; loreId: string }>();
@@ -59,53 +285,56 @@ export default function LoreDetail() {
   const isDm = campaignQuery.data?.campaign.my_role === 'dm';
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['lore-entry', campaignId, loreId, viewMode],
-    queryFn: () => fetchLoreEntry(campaignId!, loreId!, viewMode),
+    queryKey: ['lore', campaignId, loreId, viewMode],
+    queryFn: () => fetchLore(campaignId!, loreId!, viewMode),
     enabled: !!campaignId && !!loreId,
   });
-  const entry = data?.lore;
+  const lore = data?.lore;
 
   // ─── Edit form state ────────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<LoreCategoryEnum>('History');
-  const [visibility, setVisibility] = useState<LoreVisibilityEnum>('Public');
   const [content, setContent] = useState('');
+  const [visibility, setVisibility] = useState<LoreVisibilityEnum>('Public');
   const [dmNotes, setDmNotes] = useState('');
 
   function openEdit() {
-    if (!entry) return;
-    setTitle(entry.title);
-    setCategory(entry.category);
-    setVisibility(entry.visibility);
-    setContent(entry.content ?? '');
-    setDmNotes(entry.dm_notes ?? '');
+    if (!lore) return;
+    setTitle(lore.title);
+    setCategory(lore.category);
+    setContent(lore.content ?? '');
+    setVisibility(lore.visibility);
+    setDmNotes(lore.dm_notes ?? '');
     setEditing(true);
   }
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      updateLoreEntry(campaignId!, loreId!, {
+      updateLore(campaignId!, loreId!, {
         title,
         category,
-        visibility,
         content: content || undefined,
+        visibility,
         dm_notes: dmNotes || undefined,
       }),
     onSuccess: (updated) => {
-      queryClient.setQueryData(['lore-entry', campaignId, loreId, viewMode], updated);
-      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId] });
+      queryClient.setQueryData(['lore', campaignId, loreId, viewMode], {
+        lore: { ...lore, ...updated.lore },
+      });
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
       setEditing(false);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteLoreEntry(campaignId!, loreId!),
+    mutationFn: () => deleteLore(campaignId!, loreId!),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
       navigate(`/campaigns/${campaignId}/lore`);
     },
   });
 
+  // ─── Loading / error states ─────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="p-8 flex items-center gap-2 text-slate-400">
@@ -113,20 +342,10 @@ export default function LoreDetail() {
       </div>
     );
   }
-
-  // Private entries return 404 for players — show a graceful not-found state
-  if (error) {
+  if (error || !lore) {
     return (
       <div className="p-8">
-        <ErrorDisplay message="This lore entry could not be found or is not available." />
-      </div>
-    );
-  }
-
-  if (!entry) {
-    return (
-      <div className="p-8">
-        <ErrorDisplay message="Lore entry not found." />
+        <ErrorDisplay message="Failed to load lore entry." />
       </div>
     );
   }
@@ -162,16 +381,14 @@ export default function LoreDetail() {
               />
             </FormField>
 
-            {!isPlayerView && (
-              <FormField label="Visibility" htmlFor="edit-lore-visibility">
-                <Select
-                  id="edit-lore-visibility"
-                  options={VISIBILITY_OPTIONS}
-                  value={visibility}
-                  onChange={(v) => setVisibility(v as LoreVisibilityEnum)}
-                />
-              </FormField>
-            )}
+            <FormField label="Visibility" htmlFor="edit-lore-visibility">
+              <Select
+                id="edit-lore-visibility"
+                options={VISIBILITY_OPTIONS}
+                value={visibility}
+                onChange={(v) => setVisibility(v as LoreVisibilityEnum)}
+              />
+            </FormField>
           </div>
 
           <FormField label="Content" htmlFor="edit-lore-content">
@@ -187,13 +404,13 @@ export default function LoreDetail() {
             <FormField
               label="DM Notes"
               htmlFor="edit-lore-dm-notes"
-              hint="Visible to DMs only"
+              hint="Visible to DMs only — never shown to players"
             >
               <Textarea
                 id="edit-lore-dm-notes"
                 value={dmNotes}
                 onChange={(e) => setDmNotes(e.target.value)}
-                rows={3}
+                rows={4}
               />
             </FormField>
           )}
@@ -220,12 +437,13 @@ export default function LoreDetail() {
   // ─── Read mode ──────────────────────────────────────────────────────────────
   return (
     <div className="p-8 max-w-3xl">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">{entry.title}</h1>
+          <h1 className="text-2xl font-bold text-slate-100">{lore.title}</h1>
           <div className="flex items-center gap-2 mt-2">
-            <CategoryBadge category={entry.category} />
-            {!isPlayerView && <VisibilityBadge visibility={entry.visibility} />}
+            <CategoryBadge category={lore.category} />
+            <VisibilityBadge visibility={lore.visibility} />
           </div>
         </div>
 
@@ -234,23 +452,46 @@ export default function LoreDetail() {
             <Button variant="secondary" size="sm" onClick={openEdit}>
               Edit
             </Button>
-            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+            >
               Delete
             </Button>
           </div>
         )}
       </div>
 
-      <div className="mt-6 space-y-5">
-        {entry.content && <Field label="Content" value={entry.content} />}
+      {/* Content */}
+      {lore.content && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+            Content
+          </p>
+          <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
+            {lore.content}
+          </p>
+        </div>
+      )}
+
+      {/* References */}
+      <div className="mt-8">
+        <ReferencesSection
+          campaignId={campaignId!}
+          loreId={loreId!}
+          references={lore.references}
+          isDm={isDm}
+        />
       </div>
 
-      {entry.dm_notes && !isPlayerView && (
+      {/* DM Notes */}
+      {lore.dm_notes && !isPlayerView && (
         <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-2">
             DM Notes
           </p>
-          <p className="text-sm text-slate-300 whitespace-pre-wrap">{entry.dm_notes}</p>
+          <p className="text-sm text-slate-300 whitespace-pre-wrap">{lore.dm_notes}</p>
         </div>
       )}
 
@@ -261,7 +502,7 @@ export default function LoreDetail() {
         }}
         onConfirm={() => deleteMutation.mutate()}
         title="Delete Lore Entry"
-        message={`Delete "${entry.title}"? This cannot be undone.`}
+        message={`Delete "${lore.title}"? This cannot be undone.`}
         confirmLabel="Delete"
         isLoading={deleteMutation.isPending}
         error={deleteMutation.error ? 'Failed to delete lore entry. Please try again.' : null}

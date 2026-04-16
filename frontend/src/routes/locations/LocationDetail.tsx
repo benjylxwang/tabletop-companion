@@ -55,9 +55,8 @@ export default function LocationDetail() {
 
   const location = data?.location;
   const isDm = campaignQuery.data?.campaign.my_role === 'dm';
-  const parent = location?.parent_location_id
-    ? locationsQuery.data?.locations.find((l) => l.id === location.parent_location_id)
-    : undefined;
+  // Direct parent is the last entry in the ancestors chain (populated by API).
+  const parent = location?.ancestors?.at(-1);
 
   // ─── Edit form state ────────────────────────────────────────────────────────
   const [name, setName] = useState('');
@@ -272,17 +271,17 @@ export default function LocationDetail() {
             >
               Locations
             </Link>
-            {parent && (
-              <>
+            {(location.ancestors ?? []).map((a) => (
+              <span key={a.id}>
                 {' / '}
                 <Link
-                  to={`/campaigns/${campaignId}/locations/${parent.id}`}
+                  to={`/campaigns/${campaignId}/locations/${a.id}`}
                   className="hover:text-amber-400 transition-colors"
                 >
-                  {parent.name}
+                  {a.name}
                 </Link>
-              </>
-            )}
+              </span>
+            ))}
           </p>
           <h1 className="text-2xl font-bold text-slate-100">{location.name}</h1>
           {location.type && (
@@ -352,6 +351,29 @@ export default function LocationDetail() {
           >
             {parent.name}
           </Link>
+        </section>
+      )}
+
+      {location.sub_locations && location.sub_locations.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+            Sub-locations
+          </h2>
+          <ul className="space-y-1.5">
+            {location.sub_locations.map((s) => (
+              <li key={s.id}>
+                <Link
+                  to={`/campaigns/${campaignId}/locations/${s.id}`}
+                  className="text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  {s.name}
+                  {s.type && (
+                    <span className="text-slate-500 ml-1.5 text-xs">{s.type}</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

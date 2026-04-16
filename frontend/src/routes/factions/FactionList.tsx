@@ -12,6 +12,7 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
+import type { FactionCreate } from '@tabletop/shared';
 
 function CreateFactionModal({
   campaignId,
@@ -33,14 +34,7 @@ function CreateFactionModal({
   const [dmNotes, setDmNotes] = useState('');
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createFaction(campaignId, {
-        name,
-        description: description || undefined,
-        goals: goals || undefined,
-        alignment_tone: alignmentTone || undefined,
-        dm_notes: dmNotes || undefined,
-      }),
+    mutationFn: (data: FactionCreate) => createFaction(campaignId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
       onClose();
@@ -54,32 +48,28 @@ function CreateFactionModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    mutation.mutate();
+    mutation.mutate({
+      campaign_id: campaignId,
+      name,
+      description: description || undefined,
+      goals: goals || undefined,
+      alignment_tone: alignmentTone || undefined,
+      dm_notes: dmNotes || undefined,
+    });
   }
 
   return (
     <Modal open={open} onClose={onClose} title="New Faction" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Name" htmlFor="faction-name" required>
-            <TextInput
-              id="faction-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="The Iron Pact"
-            />
-          </FormField>
-
-          <FormField label="Alignment / Tone" htmlFor="faction-alignment">
-            <TextInput
-              id="faction-alignment"
-              value={alignmentTone}
-              onChange={(e) => setAlignmentTone(e.target.value)}
-              placeholder="Lawful Neutral, Sinister, …"
-            />
-          </FormField>
-        </div>
+        <FormField label="Name" htmlFor="faction-name" required>
+          <TextInput
+            id="faction-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="The Iron Brotherhood"
+          />
+        </FormField>
 
         <FormField label="Description" htmlFor="faction-description">
           <Textarea
@@ -87,7 +77,7 @@ function CreateFactionModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="Who they are and what they stand for…"
+            placeholder="What is this faction and what do they stand for?"
           />
         </FormField>
 
@@ -97,7 +87,16 @@ function CreateFactionModal({
             value={goals}
             onChange={(e) => setGoals(e.target.value)}
             rows={2}
-            placeholder="What they are trying to accomplish…"
+            placeholder="Their objectives and ambitions…"
+          />
+        </FormField>
+
+        <FormField label="Alignment / Tone" htmlFor="faction-alignment-tone">
+          <TextInput
+            id="faction-alignment-tone"
+            value={alignmentTone}
+            onChange={(e) => setAlignmentTone(e.target.value)}
+            placeholder="Lawful Neutral, secretive, militaristic…"
           />
         </FormField>
 
@@ -105,14 +104,14 @@ function CreateFactionModal({
           <FormField
             label="DM Notes"
             htmlFor="faction-dm-notes"
-            hint="Visible to DMs only — true motives, hidden agenda"
+            hint="Visible to DMs only — hidden agendas, true leadership, planned role"
           >
             <Textarea
               id="faction-dm-notes"
               value={dmNotes}
               onChange={(e) => setDmNotes(e.target.value)}
-              rows={3}
-              placeholder="What they're really after…"
+              rows={4}
+              placeholder="Secrets never shown to players."
             />
           </FormField>
         )}
@@ -159,9 +158,13 @@ export default function FactionList() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Factions</h1>
-          <p className="text-sm text-slate-400 mt-0.5">The powers that shape the world</p>
+          <p className="text-sm text-slate-400 mt-0.5">
+            The organisations and powers shaping your world
+          </p>
         </div>
-        {isDm && <Button onClick={() => setShowCreate(true)}>New Faction</Button>}
+        {isDm && (
+          <Button onClick={() => setShowCreate(true)}>New Faction</Button>
+        )}
       </div>
 
       {isLoading && <p className="text-slate-400">Loading…</p>}
@@ -172,10 +175,12 @@ export default function FactionList() {
           title="No factions yet"
           description={
             isDm
-              ? 'Create your first faction to define the political landscape.'
-              : 'No factions have been introduced yet.'
+              ? "Create your first faction to start building the world's power structures."
+              : 'The DM has not introduced any factions yet.'
           }
-          action={isDm ? { label: 'New Faction', onClick: () => setShowCreate(true) } : undefined}
+          action={
+            isDm ? { label: 'New Faction', onClick: () => setShowCreate(true) } : undefined
+          }
         />
       )}
 
@@ -191,9 +196,6 @@ export default function FactionList() {
                 {f.alignment_tone && (
                   <p className="text-sm text-slate-400 mt-1">{f.alignment_tone}</p>
                 )}
-                {f.description && (
-                  <p className="text-xs text-slate-500 mt-2 line-clamp-2">{f.description}</p>
-                )}
               </Link>
             </li>
           ))}
@@ -205,7 +207,7 @@ export default function FactionList() {
           campaignId={campaignId}
           open={showCreate}
           onClose={() => setShowCreate(false)}
-          isDm={!!isDm}
+          isDm={isDm}
         />
       )}
     </div>
