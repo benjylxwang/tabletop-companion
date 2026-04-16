@@ -1,4 +1,8 @@
 import {
+  CampaignCreate,
+  CampaignUpdate,
+  CampaignMemberResponse,
+  CampaignMembersResponse,
   CampaignResponse,
   CampaignsResponse,
   HealthResponse,
@@ -43,4 +47,55 @@ export async function fetchCampaign(id: string, viewMode: ViewMode): Promise<Cam
   const res = await authedFetch(`/api/campaigns/${id}${viewQuery(viewMode)}`);
   if (!res.ok) throw new Error(`campaign ${res.status}`);
   return CampaignResponse.parse(await res.json());
+}
+
+export async function createCampaign(data: CampaignCreate): Promise<CampaignResponse> {
+  const res = await authedFetch('/api/campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create campaign ${res.status}`);
+  return CampaignResponse.parse(await res.json());
+}
+
+export async function updateCampaign(id: string, data: CampaignUpdate): Promise<CampaignResponse> {
+  const res = await authedFetch(`/api/campaigns/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update campaign ${res.status}`);
+  return CampaignResponse.parse(await res.json());
+}
+
+export async function deleteCampaign(id: string): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete campaign ${res.status}`);
+}
+
+export async function fetchCampaignMembers(id: string): Promise<CampaignMembersResponse> {
+  const res = await authedFetch(`/api/campaigns/${id}/members`);
+  if (!res.ok) throw new Error(`campaign members ${res.status}`);
+  return CampaignMembersResponse.parse(await res.json());
+}
+
+export async function addCampaignMember(id: string, email: string): Promise<CampaignMemberResponse> {
+  const res = await authedFetch(`/api/campaigns/${id}/members`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `add member ${res.status}`);
+  }
+  return CampaignMemberResponse.parse(await res.json());
+}
+
+export async function removeCampaignMember(campaignId: string, userId: string): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`remove member ${res.status}`);
 }
