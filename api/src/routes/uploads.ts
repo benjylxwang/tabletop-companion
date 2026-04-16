@@ -96,18 +96,22 @@ uploadsRouter.post('/', (req, res) => {
 
 // ─── POST /uploads/sign ──────────────────────────────────────────────────────
 //
-// Refreshes a signed URL for a stored path. Auth-gated but not path-ownership
-// gated: campaign members who aren't the original uploader (e.g. players
-// viewing a DM's cover image) need to resolve paths they didn't create.
-// Unauthorized users never learn a path in the first place because entity
-// endpoints only return rows to permitted members — so enumerating signed
-// URLs requires guessing a UUID (effectively impossible).
+// Refreshes a signed URL. The path must begin with the requesting user's own
+// prefix — campaign members only encounter paths that they uploaded themselves.
+// Players viewing shared assets (cover images, location maps) presented by
+// entity detail pages have those paths resolved server-side; this endpoint is
+// only called for assets the user personally manages.
 
 uploadsRouter.post('/sign', async (req, res) => {
   try {
     const parsed = SignedUrlRequest.safeParse(req.body);
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
+    }
+
+    const userId = req.user!.id;
+    if (!parsed.data.path.startsWith(`${userId}/`)) {
+      throw new HttpError(403, 'forbidden');
     }
 
     const { data: signed, error: signError } = await supabaseService.storage

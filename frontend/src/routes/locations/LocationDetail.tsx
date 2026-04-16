@@ -68,6 +68,9 @@ export default function LocationDetail() {
   const [mapPath, setMapPath] = useState<string | null>(null);
 
   const mapSignedUrl = useSignedUrl(location?.map_image_url);
+  // In edit mode, resolve the *editable* path so clearing the map immediately
+  // hides the preview rather than showing the stale persisted URL.
+  const editMapSignedUrl = useSignedUrl(editing ? mapPath : null);
 
   function openEdit() {
     if (!location) return;
@@ -207,7 +210,7 @@ export default function LocationDetail() {
               accept="image/png,image/jpeg"
               allowedMimeTypes={['image/png', 'image/jpeg']}
               currentPath={mapPath}
-              currentUrl={mapSignedUrl.url}
+              currentUrl={editMapSignedUrl.url}
               uploadFile={uploadFile}
               onUploaded={(result) => setMapPath(result?.path ?? null)}
             />

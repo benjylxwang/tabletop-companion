@@ -124,13 +124,13 @@ export function FileUpload({
   function onDrop(e: React.DragEvent<HTMLLabelElement>) {
     e.preventDefault();
     setDragActive(false);
-    if (disabled) return;
+    if (disabled || progress !== null) return;
     void handleFile(e.dataTransfer.files?.[0] ?? null);
   }
 
   function onDragOver(e: React.DragEvent<HTMLLabelElement>) {
     e.preventDefault();
-    if (!disabled) setDragActive(true);
+    if (!disabled && progress === null) setDragActive(true);
   }
 
   function onDragLeave(e: React.DragEvent<HTMLLabelElement>) {
@@ -178,6 +178,12 @@ export function FileUpload({
               alt={displayName ?? 'Uploaded file'}
               className="max-h-40 w-full rounded object-contain bg-slate-950"
             />
+          )}
+          {!displayUrl && displayName && (
+            <div className="flex items-center gap-2 text-slate-300 text-sm">
+              <FileText className="h-5 w-5 shrink-0 text-slate-400" />
+              <span className="flex-1 min-w-0 truncate text-slate-300">{displayName}</span>
+            </div>
           )}
           {displayUrl && !isImage && (
             <div className="flex items-center gap-2 text-slate-300 text-sm">
