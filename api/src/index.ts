@@ -1,13 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import './lib/supabase.js';
+import { authMiddleware } from './middleware/auth.js';
+import { viewModeMiddleware } from './middleware/viewMode.js';
 import { healthRouter } from './routes/health.js';
 import { campaignsRouter } from './routes/campaigns.js';
-
-const { SUPABASE_URL, SUPABASE_ANON_KEY, PORT } = process.env;
-console.log('Supabase config present:', {
-  url: !!SUPABASE_URL,
-  anonKey: !!SUPABASE_ANON_KEY,
-});
 
 const app = express();
 
@@ -29,12 +26,13 @@ app.use(
 );
 
 app.use(express.json());
-app.use(healthRouter);
-app.use(campaignsRouter);
+app.use(viewModeMiddleware);
 
-const port = Number(PORT) || 3000;
+app.use(healthRouter);
+
+app.use('/api', authMiddleware, campaignsRouter);
+
+const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
   console.log(`api listening on :${port}`);
 });
-
-// smoke test 2026-04-15T15:09:38Z

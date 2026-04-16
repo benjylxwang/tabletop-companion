@@ -140,15 +140,20 @@ async function main() {
       latestDeployment(projectId, api.id),
     ]);
 
-    // Prefer a deployment matching THIS commit SHA, but fall back to the most
-    // recent SUCCESS. Railway skips deploys when a service's watched paths
-    // aren't modified (`No deployment needed - watched paths not modified`),
-    // which means the currently-live deployment is from an earlier commit and
-    // no SHA match will ever appear. Accepting "most recent SUCCESS" covers
-    // that case while still preferring exact matches when present.
-    const pickReady = (deploys) =>
-      deploys.find((d) => matches(d) && d.status === 'SUCCESS') ??
-      deploys.find((d) => d.status === 'SUCCESS');
+    // Prefer a deployment matching THIS commit SHA. If a SHA-matching
+    // deployment exists but is still BUILDING/DEPLOYING, keep polling —
+    // falling back to a stale prod deployment in that window was the bug
+    // that let PR #46 test against prod while its preview was still building.
+    // Only fall back to "most recent SUCCESS" when Railway has SKIPPED this
+    // SHA entirely (watched paths unchanged), which is the case a stale
+    // deployment is legitimately the live one.
+    const pickReady = (deploys) => {
+      const shaMatched = deploys.find(matches);
+      if (shaMatched) {
+        return shaMatched.status === 'SUCCESS' ? shaMatched : null;
+      }
+      return deploys.find((d) => d.status === 'SUCCESS');
+    };
 
     const feMatch = pickReady(feDeploys);
     const apiMatch = pickReady(apiDeploys);
