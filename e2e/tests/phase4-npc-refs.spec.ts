@@ -13,7 +13,7 @@ let sessionId: string;
 const dmEmail = `e2e-npc-refs-${Date.now()}@example.com`;
 const testPassword = 'E2eTestPass1!';
 
-test.describe('NPC ↔ Faction + first-appeared session (API)', () => {
+test.describe.serial('NPC ↔ Faction + first-appeared session (API)', () => {
   test.skip(!apiURL || !supabaseUrl || !supabaseAnonKey, 'API/Supabase env vars required');
 
   test.beforeAll(async ({ request }) => {

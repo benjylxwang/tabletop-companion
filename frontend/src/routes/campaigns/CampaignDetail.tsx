@@ -178,6 +178,12 @@ export default function CampaignDetail() {
     enabled: !!id,
   });
 
+  const overviewQuery = useQuery({
+    queryKey: ['campaign', id, 'overview', viewMode],
+    queryFn: () => fetchCampaignOverview(id!),
+    enabled: !!id,
+  });
+
   const campaign = data?.campaign;
   const isDm = campaign?.my_role === 'dm';
 
@@ -402,6 +408,9 @@ export default function CampaignDetail() {
         </div>
       )}
 
+      {overviewQuery.data && (
+        <OverviewSection campaignId={id!} overview={overviewQuery.data.overview} />
+      )}
     </div>
   );
 }

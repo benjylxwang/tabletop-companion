@@ -13,7 +13,7 @@ let locationId: string;
 const dmEmail = `e2e-session-refs-${Date.now()}@example.com`;
 const testPassword = 'E2eTestPass1!';
 
-test.describe('Session ↔ NPC/Location references (API)', () => {
+test.describe.serial('Session ↔ NPC/Location references (API)', () => {
   test.skip(!apiURL || !supabaseUrl || !supabaseAnonKey, 'API/Supabase env vars required');
 
   test.beforeAll(async ({ request }) => {

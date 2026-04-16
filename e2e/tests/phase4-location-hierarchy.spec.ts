@@ -13,7 +13,7 @@ let tavernId: string;
 const dmEmail = `e2e-location-hierarchy-${Date.now()}@example.com`;
 const testPassword = 'E2eTestPass1!';
 
-test.describe('Location hierarchy navigation (API)', () => {
+test.describe.serial('Location hierarchy navigation (API)', () => {
   test.skip(!apiURL || !supabaseUrl || !supabaseAnonKey, 'API/Supabase env vars required');
 
   test.beforeAll(async ({ request }) => {

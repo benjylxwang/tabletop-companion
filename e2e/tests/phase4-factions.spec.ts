@@ -13,7 +13,7 @@ let faction2Id: string;
 const dmEmail = `e2e-factions-dm-${Date.now()}@example.com`;
 const testPassword = 'E2eTestPass1!';
 
-test.describe('Factions CRUD + members + relationships (API)', () => {
+test.describe.serial('Factions CRUD + members + relationships (API)', () => {
   test.skip(!apiURL || !supabaseUrl || !supabaseAnonKey, 'API/Supabase env vars required');
 
   test.beforeAll(async ({ request }) => {

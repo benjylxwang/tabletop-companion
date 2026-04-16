@@ -136,6 +136,16 @@ async function linkNpc(req: Request, res: Response): Promise<void> {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
 
+    // Verify the NPC belongs to this campaign to prevent cross-campaign link tampering.
+    const { data: npcExists, error: npcCheckError } = await supabaseService
+      .from('npcs')
+      .select('id')
+      .eq('id', parsed.data.npc_id)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+    if (npcCheckError) throw new HttpError(500, 'database error');
+    if (!npcExists) throw new NotFoundError();
+
     const { error } = await supabaseService
       .from('session_npcs')
       .insert({ session_id: id, npc_id: parsed.data.npc_id } as never);
@@ -190,6 +200,16 @@ async function linkLocation(req: Request, res: Response): Promise<void> {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
+
+    // Verify the location belongs to this campaign to prevent cross-campaign link tampering.
+    const { data: locExists, error: locCheckError } = await supabaseService
+      .from('locations')
+      .select('id')
+      .eq('id', parsed.data.location_id)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+    if (locCheckError) throw new HttpError(500, 'database error');
+    if (!locExists) throw new NotFoundError();
 
     const { error } = await supabaseService
       .from('session_locations')

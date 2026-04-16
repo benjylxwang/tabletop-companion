@@ -57,13 +57,15 @@ async function getNpc(req: Request, res: Response): Promise<void> {
 
     const npc = Npc.parse(nullToUndefined(npcData as Record<string, unknown>));
 
-    // Fetch faction and first-appeared session in parallel if referenced
+    // Fetch faction and first-appeared session in parallel if referenced.
+    // Scope by campaign_id to prevent cross-campaign data leakage.
     const [factionResult, sessionResult] = await Promise.all([
       npc.faction_id
         ? supabaseService
             .from('factions')
             .select('id, name')
             .eq('id', npc.faction_id)
+            .eq('campaign_id', campaignId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       npc.first_appeared_session_id
@@ -71,6 +73,7 @@ async function getNpc(req: Request, res: Response): Promise<void> {
             .from('sessions')
             .select('id, title, session_number')
             .eq('id', npc.first_appeared_session_id)
+            .eq('campaign_id', campaignId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ]);
