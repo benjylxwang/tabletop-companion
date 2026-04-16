@@ -13,7 +13,9 @@ import { locationsRouter } from './routes/locations.js';
 import { loreRouter } from './routes/lore.js';
 import { npcsRouter } from './routes/npcs.js';
 import { sessionsRouter } from './routes/sessions.js';
+import { uploadsRouter } from './routes/uploads.js';
 import { meRouter } from './routes/me.js';
+import { ensureUploadsBucket } from './lib/uploadsBucket.js';
 
 const app = express();
 
@@ -49,9 +51,15 @@ app.use('/api', authMiddleware, loreRouter);
 app.use('/api', authMiddleware, npcsRouter);
 app.use('/api', authMiddleware, sessionsRouter);
 app.use('/api/ai', authMiddleware, aiRouter);
+app.use('/api/uploads', authMiddleware, uploadsRouter);
 
 const port = Number(process.env.PORT) || 3000;
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
   console.log(`api listening on :${port}`);
+  try {
+    await ensureUploadsBucket();
+  } catch (err) {
+    console.error('failed to ensure uploads bucket on startup', err);
+  }
 });
 server.keepAliveTimeout = 65_000;

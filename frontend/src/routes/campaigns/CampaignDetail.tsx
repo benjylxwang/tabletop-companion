@@ -9,11 +9,14 @@ import {
   fetchCampaignInvitations,
   inviteCampaignMember,
   removeCampaignMember,
+  uploadFile,
 } from '../../lib/api';
+import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import { useAuth } from '../../lib/auth';
 import {
   Button,
+  FileUpload,
   FormField,
   TextInput,
   Textarea,
@@ -52,6 +55,11 @@ export default function CampaignDetail() {
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<CampaignStatusEnum>('Active');
   const [dmNotes, setDmNotes] = useState('');
+  // Storage path (not a URL) — persisted in cover_image_url column.
+  const [coverPath, setCoverPath] = useState<string | null>(null);
+
+  // Live preview in read mode + initial preview in edit mode.
+  const coverSignedUrl = useSignedUrl(campaign?.cover_image_url);
 
   function openEdit() {
     if (!campaign) return;
@@ -60,6 +68,7 @@ export default function CampaignDetail() {
     setDescription(campaign.description ?? '');
     setStatus(campaign.status);
     setDmNotes(campaign.dm_notes ?? '');
+    setCoverPath(campaign.cover_image_url ?? null);
     setEditing(true);
   }
 
@@ -70,6 +79,10 @@ export default function CampaignDetail() {
         system: system || undefined,
         description: description || undefined,
         status,
+        // `null` (not `undefined`) so clearing the cover actually nulls the
+        // column — `undefined` would be dropped by JSON.stringify and the
+        // old path would silently stick.
+        cover_image_url: coverPath,
         dm_notes: dmNotes || undefined,
       }),
     onSuccess: (updated) => {
@@ -150,6 +163,21 @@ export default function CampaignDetail() {
             />
           </FormField>
 
+          <FormField
+            label="Cover Image"
+            htmlFor="edit-cover"
+            hint="PNG or JPG, up to 10 MB"
+          >
+            <FileUpload
+              accept="image/png,image/jpeg"
+              allowedMimeTypes={['image/png', 'image/jpeg']}
+              currentPath={coverPath}
+              currentUrl={coverSignedUrl.url}
+              uploadFile={uploadFile}
+              onUploaded={(result) => setCoverPath(result?.path ?? null)}
+            />
+          </FormField>
+
           {!isPlayerView && (
             <FormField label="DM Notes" htmlFor="edit-dm-notes" hint="Visible to DMs only">
               <Textarea
@@ -209,6 +237,16 @@ export default function CampaignDetail() {
           </div>
         )}
       </div>
+
+      {campaign.cover_image_url && coverSignedUrl.url && (
+        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
+          <img
+            src={coverSignedUrl.url}
+            alt={`Cover for ${campaign.name}`}
+            className="w-full max-h-96 object-contain"
+          />
+        </div>
+      )}
 
       {campaign.description && (
         <p className="mt-4 text-slate-300 leading-relaxed">{campaign.description}</p>

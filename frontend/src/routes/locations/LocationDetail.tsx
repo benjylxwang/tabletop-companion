@@ -7,11 +7,14 @@ import {
   fetchLocation,
   fetchLocations,
   updateLocation,
+  uploadFile,
 } from '../../lib/api';
+import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
   Button,
   ErrorDisplay,
+  FileUpload,
   FormField,
   Select,
   Spinner,
@@ -62,6 +65,12 @@ export default function LocationDetail() {
   const [history, setHistory] = useState('');
   const [parentId, setParentId] = useState('');
   const [dmNotes, setDmNotes] = useState('');
+  const [mapPath, setMapPath] = useState<string | null>(null);
+
+  const mapSignedUrl = useSignedUrl(location?.map_image_url);
+  // In edit mode, resolve the *editable* path so clearing the map immediately
+  // hides the preview rather than showing the stale persisted URL.
+  const editMapSignedUrl = useSignedUrl(editing ? mapPath : null);
 
   function openEdit() {
     if (!location) return;
@@ -71,6 +80,7 @@ export default function LocationDetail() {
     setHistory(location.history ?? '');
     setParentId(location.parent_location_id ?? '');
     setDmNotes(location.dm_notes ?? '');
+    setMapPath(location.map_image_url ?? null);
     setEditing(true);
   }
 
@@ -84,6 +94,7 @@ export default function LocationDetail() {
         type: type === '' ? null : type,
         description: description === '' ? null : description,
         history: history === '' ? null : history,
+        map_image_url: mapPath,
         parent_location_id: parentId === '' ? null : parentId,
         dm_notes: dmNotes === '' ? null : dmNotes,
       }),
@@ -190,6 +201,21 @@ export default function LocationDetail() {
             />
           </FormField>
 
+          <FormField
+            label="Map Image"
+            htmlFor="edit-loc-map"
+            hint="PNG or JPG, up to 10 MB"
+          >
+            <FileUpload
+              accept="image/png,image/jpeg"
+              allowedMimeTypes={['image/png', 'image/jpeg']}
+              currentPath={mapPath}
+              currentUrl={editMapSignedUrl.url}
+              uploadFile={uploadFile}
+              onUploaded={(result) => setMapPath(result?.path ?? null)}
+            />
+          </FormField>
+
           {!isPlayerView && (
             <FormField label="DM Notes" htmlFor="edit-loc-dm-notes" hint="Visible to DMs only">
               <Textarea
@@ -273,10 +299,10 @@ export default function LocationDetail() {
         )}
       </div>
 
-      {location.map_image_url && (
+      {location.map_image_url && mapSignedUrl.url && (
         <div className="mt-6 rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
           <img
-            src={location.map_image_url}
+            src={mapSignedUrl.url}
             alt={`Map of ${location.name}`}
             className="w-full max-h-96 object-contain"
           />
