@@ -11,6 +11,10 @@ import {
   CharacterResponse,
   CharacterUpdate,
   CharactersResponse,
+  FactionCreate,
+  FactionResponse,
+  FactionUpdate,
+  FactionsResponse,
   GenerateCampaignResponse,
   GenerateFieldResponse,
   GenerateImageResponse,
@@ -19,6 +23,10 @@ import {
   LocationResponse,
   LocationUpdate,
   LocationsResponse,
+  LoreCreate,
+  LoreListResponse,
+  LoreResponse,
+  LoreUpdate,
   MeResponse,
   NpcCreate,
   NpcResponse,
@@ -357,6 +365,130 @@ export async function deleteCharacter(
     { method: 'DELETE' },
   );
   if (!res.ok) throw new Error(`delete character ${res.status}`);
+}
+
+// ─── Lore ────────────────────────────────────────────────────────────────────
+
+export async function fetchLoreEntries(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<LoreListResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/lore${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreListResponse.parse(await res.json());
+}
+
+export async function fetchLoreEntry(
+  campaignId: string,
+  loreId: string,
+  viewMode: ViewMode,
+): Promise<LoreResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/lore/${loreId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function createLoreEntry(
+  campaignId: string,
+  data: Omit<LoreCreate, 'campaign_id'>,
+): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function updateLoreEntry(
+  campaignId: string,
+  loreId: string,
+  data: Omit<LoreUpdate, 'campaign_id'>,
+): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function deleteLoreEntry(
+  campaignId: string,
+  loreId: string,
+): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete lore ${res.status}`);
+}
+
+// ─── Factions ────────────────────────────────────────────────────────────────
+
+export async function fetchFactions(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<FactionsResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/factions${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`factions ${res.status}`);
+  return FactionsResponse.parse(await res.json());
+}
+
+export async function fetchFaction(
+  campaignId: string,
+  factionId: string,
+  viewMode: ViewMode,
+): Promise<FactionResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/factions/${factionId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function createFaction(
+  campaignId: string,
+  data: Omit<FactionCreate, 'campaign_id'>,
+): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function updateFaction(
+  campaignId: string,
+  factionId: string,
+  data: Omit<FactionUpdate, 'campaign_id'>,
+): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function deleteFaction(
+  campaignId: string,
+  factionId: string,
+): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete faction ${res.status}`);
 }
 
 // ─── Uploads ──────────────────────────────────────────────────────────────────
