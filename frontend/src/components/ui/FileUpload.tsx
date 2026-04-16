@@ -48,7 +48,7 @@ export function FileUpload({
             error ? 'border-crimson-600' : 'border-parchment-300',
           ].join(' ')}
         >
-          <span className="flex-1 text-sm text-ink-700 truncate">
+          <span className="flex-1 min-w-0 text-sm text-ink-700 truncate">
             {currentFileName}
           </span>
           {!disabled && (

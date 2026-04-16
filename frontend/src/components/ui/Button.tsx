@@ -40,6 +40,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
+        type="button"
         disabled={disabled || isLoading}
         className={[
           'inline-flex items-center justify-center font-medium rounded border',

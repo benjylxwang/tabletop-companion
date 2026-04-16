@@ -17,7 +17,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
           'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           error
-            ? 'border-crimson-600 focus:ring-crimson-600'
+            ? 'border-crimson-600 focus:ring-crimson-600 focus:border-crimson-600'
             : 'border-parchment-300',
           className,
         ].join(' ')}
