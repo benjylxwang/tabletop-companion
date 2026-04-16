@@ -6,6 +6,10 @@ import {
   CampaignResponse,
   CampaignsResponse,
   HealthResponse,
+  LoreCreate,
+  LoreListResponse,
+  LoreResponse,
+  LoreUpdate,
   MeResponse,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
@@ -98,4 +102,43 @@ export async function removeCampaignMember(campaignId: string, userId: string): 
     method: 'DELETE',
   });
   if (!res.ok) throw new Error(`remove member ${res.status}`);
+}
+
+// ─── Lore ─────────────────────────────────────────────────────────────────────
+
+export async function fetchLoreEntries(campaignId: string, viewMode: ViewMode): Promise<LoreListResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore${viewQuery(viewMode)}`);
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreListResponse.parse(await res.json());
+}
+
+export async function fetchLoreEntry(campaignId: string, loreId: string, viewMode: ViewMode): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}${viewQuery(viewMode)}`);
+  if (!res.ok) throw new Error(`lore entry ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function createLoreEntry(campaignId: string, data: LoreCreate): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function updateLoreEntry(campaignId: string, loreId: string, data: LoreUpdate): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function deleteLoreEntry(campaignId: string, loreId: string): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete lore ${res.status}`);
 }
