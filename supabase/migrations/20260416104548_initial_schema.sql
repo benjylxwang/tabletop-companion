@@ -3,6 +3,10 @@
 -- All DM-only fields are prefixed with dm_ (e.g. dm_notes).
 -- Content tables carry visibility + revealed_to for the
 -- permission model (private / public / revealed).
+--
+-- RLS is enabled on every table (deny-by-default for anon/authenticated).
+-- The API uses the service role key, which bypasses RLS entirely.
+-- Add role-based policies here once authentication is implemented.
 -- =============================================================
 
 -- =============================================================
@@ -37,10 +41,6 @@ create table campaigns (
 
 alter table campaigns enable row level security;
 
--- v1 (DM-only, no auth yet): allow all access.
--- Replace with role-based policies when auth is implemented.
-create policy "allow all" on campaigns for all using (true) with check (true);
-
 create trigger update_campaigns_updated_at
   before update on campaigns
   for each row execute procedure update_updated_at_column();
@@ -60,15 +60,15 @@ create table campaign_members (
   primary key (campaign_id, user_id)
 );
 
+-- Index on user_id alone for "all campaigns this user belongs to" queries.
+-- The composite (campaign_id, user_id) index is already provided by the PK.
 create index on campaign_members (user_id);
-create index on campaign_members (campaign_id, user_id);
 
 alter table campaign_members enable row level security;
 
-create policy "allow all" on campaign_members for all using (true) with check (true);
-
 -- =============================================================
 -- sessions
+-- session_number is auto-assigned per campaign by the trigger below.
 -- =============================================================
 
 create table sessions (
@@ -91,11 +91,28 @@ create table sessions (
 
 alter table sessions enable row level security;
 
-create policy "allow all" on sessions for all using (true) with check (true);
-
 create trigger update_sessions_updated_at
   before update on sessions
   for each row execute procedure update_updated_at_column();
+
+-- Auto-assign session_number = max(session_number)+1 per campaign on insert.
+-- Only runs when session_number is not explicitly provided.
+create or replace function assign_session_number()
+returns trigger language plpgsql as $$
+begin
+  if new.session_number is null then
+    select coalesce(max(session_number), 0) + 1
+    into new.session_number
+    from sessions
+    where campaign_id = new.campaign_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger assign_session_number_before_insert
+  before insert on sessions
+  for each row execute procedure assign_session_number();
 
 -- =============================================================
 -- characters (player characters — PCs)
@@ -125,8 +142,6 @@ create table characters (
 
 alter table characters enable row level security;
 
-create policy "allow all" on characters for all using (true) with check (true);
-
 create trigger update_characters_updated_at
   before update on characters
   for each row execute procedure update_updated_at_column();
@@ -152,8 +167,6 @@ create table factions (
 );
 
 alter table factions enable row level security;
-
-create policy "allow all" on factions for all using (true) with check (true);
 
 create trigger update_factions_updated_at
   before update on factions
@@ -187,8 +200,6 @@ create table npcs (
 
 alter table npcs enable row level security;
 
-create policy "allow all" on npcs for all using (true) with check (true);
-
 create trigger update_npcs_updated_at
   before update on npcs
   for each row execute procedure update_updated_at_column();
@@ -217,8 +228,6 @@ create table locations (
 
 alter table locations enable row level security;
 
-create policy "allow all" on locations for all using (true) with check (true);
-
 create trigger update_locations_updated_at
   before update on locations
   for each row execute procedure update_updated_at_column();
@@ -244,14 +253,16 @@ create table lore (
 
 alter table lore enable row level security;
 
-create policy "allow all" on lore for all using (true) with check (true);
-
 create trigger update_lore_updated_at
   before update on lore
   for each row execute procedure update_updated_at_column();
 
 -- =============================================================
 -- JUNCTION TABLES
+--
+-- Each junction table validates that both sides belong to the
+-- same campaign via a BEFORE INSERT OR UPDATE trigger.
+-- This prevents cross-campaign links that would violate tenant isolation.
 -- =============================================================
 
 -- session ↔ NPC (which NPCs appeared in a session)
@@ -262,7 +273,26 @@ create table session_npcs (
 );
 
 alter table session_npcs enable row level security;
-create policy "allow all" on session_npcs for all using (true) with check (true);
+
+create or replace function check_session_npc_same_campaign()
+returns trigger language plpgsql as $$
+declare
+  v_session_campaign uuid;
+  v_npc_campaign     uuid;
+begin
+  select campaign_id into v_session_campaign from sessions   where id = new.session_id;
+  select campaign_id into v_npc_campaign     from npcs       where id = new.npc_id;
+  if v_session_campaign is distinct from v_npc_campaign then
+    raise exception 'session (%) and npc (%) must belong to the same campaign',
+      new.session_id, new.npc_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger check_session_npc_same_campaign
+  before insert or update on session_npcs
+  for each row execute procedure check_session_npc_same_campaign();
 
 -- session ↔ location (which locations featured in a session)
 create table session_locations (
@@ -272,7 +302,26 @@ create table session_locations (
 );
 
 alter table session_locations enable row level security;
-create policy "allow all" on session_locations for all using (true) with check (true);
+
+create or replace function check_session_location_same_campaign()
+returns trigger language plpgsql as $$
+declare
+  v_session_campaign  uuid;
+  v_location_campaign uuid;
+begin
+  select campaign_id into v_session_campaign  from sessions  where id = new.session_id;
+  select campaign_id into v_location_campaign from locations where id = new.location_id;
+  if v_session_campaign is distinct from v_location_campaign then
+    raise exception 'session (%) and location (%) must belong to the same campaign',
+      new.session_id, new.location_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger check_session_location_same_campaign
+  before insert or update on session_locations
+  for each row execute procedure check_session_location_same_campaign();
 
 -- faction ↔ NPC membership
 create table faction_members (
@@ -283,7 +332,26 @@ create table faction_members (
 );
 
 alter table faction_members enable row level security;
-create policy "allow all" on faction_members for all using (true) with check (true);
+
+create or replace function check_faction_member_same_campaign()
+returns trigger language plpgsql as $$
+declare
+  v_faction_campaign uuid;
+  v_npc_campaign     uuid;
+begin
+  select campaign_id into v_faction_campaign from factions where id = new.faction_id;
+  select campaign_id into v_npc_campaign     from npcs     where id = new.npc_id;
+  if v_faction_campaign is distinct from v_npc_campaign then
+    raise exception 'faction (%) and npc (%) must belong to the same campaign',
+      new.faction_id, new.npc_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger check_faction_member_same_campaign
+  before insert or update on faction_members
+  for each row execute procedure check_faction_member_same_campaign();
 
 -- faction ↔ faction relationships (inter-faction dynamics)
 create table faction_relationships (
@@ -296,9 +364,35 @@ create table faction_relationships (
 );
 
 alter table faction_relationships enable row level security;
-create policy "allow all" on faction_relationships for all using (true) with check (true);
 
--- lore ↔ entity references (polymorphic — lore can reference any entity)
+create or replace function check_faction_relationship_same_campaign()
+returns trigger language plpgsql as $$
+declare
+  v_faction_a_campaign uuid;
+  v_faction_b_campaign uuid;
+begin
+  select campaign_id into v_faction_a_campaign from factions where id = new.faction_id;
+  select campaign_id into v_faction_b_campaign from factions where id = new.related_faction_id;
+  if v_faction_a_campaign is distinct from v_faction_b_campaign then
+    raise exception 'factions (%) and (%) must belong to the same campaign',
+      new.faction_id, new.related_faction_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger check_faction_relationship_same_campaign
+  before insert or update on faction_relationships
+  for each row execute procedure check_faction_relationship_same_campaign();
+
+-- =============================================================
+-- lore ↔ entity references (polymorphic)
+--
+-- entity_id cannot carry a typed FK because it references different tables
+-- depending on entity_type. Orphan cleanup is handled by the triggers below,
+-- which delete lore_references rows when the referenced entity is deleted.
+-- =============================================================
+
 create table lore_references (
   lore_id     uuid not null references lore(id) on delete cascade,
   entity_type text not null
@@ -308,4 +402,38 @@ create table lore_references (
 );
 
 alter table lore_references enable row level security;
-create policy "allow all" on lore_references for all using (true) with check (true);
+
+-- Cleanup trigger function: deletes lore_references rows for a deleted entity.
+-- entity_type is passed as a trigger argument.
+create or replace function cleanup_lore_references()
+returns trigger language plpgsql as $$
+begin
+  delete from lore_references
+  where entity_type = tg_argv[0] and entity_id = old.id;
+  return old;
+end;
+$$;
+
+create trigger cleanup_campaign_lore_refs
+  after delete on campaigns
+  for each row execute procedure cleanup_lore_references('campaign');
+
+create trigger cleanup_session_lore_refs
+  after delete on sessions
+  for each row execute procedure cleanup_lore_references('session');
+
+create trigger cleanup_character_lore_refs
+  after delete on characters
+  for each row execute procedure cleanup_lore_references('character');
+
+create trigger cleanup_npc_lore_refs
+  after delete on npcs
+  for each row execute procedure cleanup_lore_references('npc');
+
+create trigger cleanup_location_lore_refs
+  after delete on locations
+  for each row execute procedure cleanup_lore_references('location');
+
+create trigger cleanup_faction_lore_refs
+  after delete on factions
+  for each row execute procedure cleanup_lore_references('faction');
