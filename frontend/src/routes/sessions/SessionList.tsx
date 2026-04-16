@@ -4,11 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCampaign, fetchSessions, createSession } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
+  GenerateAllFieldsButton,
   Modal,
   FormField,
   TextInput,
-  Textarea,
   EmptyState,
   ErrorDisplay,
 } from '../../components';
@@ -27,6 +29,7 @@ function CreateSessionModal({
 }) {
   const queryClient = useQueryClient();
   const { viewMode } = useViewMode();
+  const isPlayerView = viewMode === 'player';
   const [title, setTitle] = useState('');
   const [sessionNumber, setSessionNumber] = useState('');
   const [datePlayed, setDatePlayed] = useState('');
@@ -63,8 +66,12 @@ function CreateSessionModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Title" htmlFor="session-title" required>
-            <TextInput
+            <AITextInput
               id="session-title"
+              campaignId={campaignId}
+              entityType="session"
+              fieldName="title"
+              entityDraft={{ title, summary }}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -96,8 +103,12 @@ function CreateSessionModal({
         </FormField>
 
         <FormField label="Summary" htmlFor="session-summary">
-          <Textarea
+          <AITextarea
             id="session-summary"
+            campaignId={campaignId}
+            entityType="session"
+            fieldName="summary"
+            entityDraft={{ title, summary }}
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             rows={3}
@@ -105,14 +116,29 @@ function CreateSessionModal({
           />
         </FormField>
 
-        {isDm && viewMode === 'dm' && (
+        <GenerateAllFieldsButton
+          campaignId={campaignId}
+          entityType="session"
+          entityDraft={{ title, summary }}
+          fields={[
+            { fieldName: 'title', onChange: (v) => setTitle(v) },
+            { fieldName: 'summary', onChange: (v) => setSummary(v) },
+            ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+          ]}
+        />
+
+        {!isPlayerView && (
           <FormField
             label="DM Notes"
             htmlFor="session-dm-notes"
             hint="Visible to DMs only"
           >
-            <Textarea
+            <AITextarea
               id="session-dm-notes"
+              campaignId={campaignId}
+              entityType="session"
+              fieldName="dm_notes"
+              entityDraft={{ title, summary }}
               value={dmNotes}
               onChange={(e) => setDmNotes(e.target.value)}
               rows={3}

@@ -15,11 +15,13 @@ import {
 } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   ConfirmModal,
   FormField,
+  GenerateAllFieldsButton,
   TextInput,
-  Textarea,
   Select,
   Spinner,
   ErrorDisplay,
@@ -483,8 +485,12 @@ export default function FactionDetail() {
           </FormField>
 
           <FormField label="Description" htmlFor="edit-faction-description">
-            <Textarea
+            <AITextarea
               id="edit-faction-description"
+              campaignId={campaignId!}
+              entityType="faction"
+              fieldName="description"
+              entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -492,8 +498,12 @@ export default function FactionDetail() {
           </FormField>
 
           <FormField label="Goals" htmlFor="edit-faction-goals">
-            <Textarea
+            <AITextarea
               id="edit-faction-goals"
+              campaignId={campaignId!}
+              entityType="faction"
+              fieldName="goals"
+              entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
               value={goals}
               onChange={(e) => setGoals(e.target.value)}
               rows={2}
@@ -501,12 +511,28 @@ export default function FactionDetail() {
           </FormField>
 
           <FormField label="Alignment / Tone" htmlFor="edit-faction-alignment-tone">
-            <TextInput
+            <AITextInput
               id="edit-faction-alignment-tone"
+              campaignId={campaignId!}
+              entityType="faction"
+              fieldName="alignment_tone"
+              entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
               value={alignmentTone}
               onChange={(e) => setAlignmentTone(e.target.value)}
             />
           </FormField>
+
+          <GenerateAllFieldsButton
+            campaignId={campaignId!}
+            entityType="faction"
+            entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
+            fields={[
+              { fieldName: 'description', onChange: (v) => setDescription(v) },
+              { fieldName: 'goals', onChange: (v) => setGoals(v) },
+              { fieldName: 'alignment_tone', onChange: (v) => setAlignmentTone(v) },
+              ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+            ]}
+          />
 
           {!isPlayerView && (
             <FormField
@@ -514,8 +540,12 @@ export default function FactionDetail() {
               htmlFor="edit-faction-dm-notes"
               hint="Visible to DMs only — never shown to players"
             >
-              <Textarea
+              <AITextarea
                 id="edit-faction-dm-notes"
+                campaignId={campaignId!}
+                entityType="faction"
+                fieldName="dm_notes"
+                entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
                 value={dmNotes}
                 onChange={(e) => setDmNotes(e.target.value)}
                 rows={4}

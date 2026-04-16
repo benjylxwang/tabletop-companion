@@ -8,15 +8,17 @@ import {
 } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
   EmptyState,
   ErrorDisplay,
   FormField,
+  GenerateAllFieldsButton,
   Modal,
   Select,
   Spinner,
   TextInput,
-  Textarea,
 } from '../../components';
 import { EntityAvatar } from '../../components/ui/EntityAvatar';
 import type { Location, LocationCreate } from '@tabletop/shared';
@@ -99,8 +101,12 @@ function CreateLocationModal({
         </FormField>
 
         <FormField label="Type" htmlFor="loc-type">
-          <TextInput
+          <AITextInput
             id="loc-type"
+            campaignId={campaignId}
+            entityType="location"
+            fieldName="type"
+            entityDraft={{ name, type, description, history }}
             value={type}
             onChange={(e) => setType(e.target.value)}
             placeholder="Town, Dungeon, Tavern, Region…"
@@ -122,8 +128,12 @@ function CreateLocationModal({
         </FormField>
 
         <FormField label="Description" htmlFor="loc-description">
-          <Textarea
+          <AITextarea
             id="loc-description"
+            campaignId={campaignId}
+            entityType="location"
+            fieldName="description"
+            entityDraft={{ name, type, description, history }}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
@@ -132,8 +142,12 @@ function CreateLocationModal({
         </FormField>
 
         <FormField label="History" htmlFor="loc-history">
-          <Textarea
+          <AITextarea
             id="loc-history"
+            campaignId={campaignId}
+            entityType="location"
+            fieldName="history"
+            entityDraft={{ name, type, description, history }}
             value={history}
             onChange={(e) => setHistory(e.target.value)}
             rows={3}
@@ -141,10 +155,26 @@ function CreateLocationModal({
           />
         </FormField>
 
+        <GenerateAllFieldsButton
+          campaignId={campaignId}
+          entityType="location"
+          entityDraft={{ name, type, description, history }}
+          fields={[
+            { fieldName: 'type', onChange: (v) => setType(v) },
+            { fieldName: 'description', onChange: (v) => setDescription(v) },
+            { fieldName: 'history', onChange: (v) => setHistory(v) },
+            ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+          ]}
+        />
+
         {!isPlayerView && (
           <FormField label="DM Notes" htmlFor="loc-dm-notes" hint="Visible to DMs only">
-            <Textarea
+            <AITextarea
               id="loc-dm-notes"
+              campaignId={campaignId}
+              entityType="location"
+              fieldName="dm_notes"
+              entityDraft={{ name, type, description, history }}
               value={dmNotes}
               onChange={(e) => setDmNotes(e.target.value)}
               rows={3}

@@ -4,11 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCampaign, fetchFactions, createFaction } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
+  AITextInput,
+  AITextarea,
   Button,
+  GenerateAllFieldsButton,
   Modal,
   FormField,
   TextInput,
-  Textarea,
   EmptyState,
   ErrorDisplay,
 } from '../../components';
@@ -28,6 +30,7 @@ function CreateFactionModal({
 }) {
   const queryClient = useQueryClient();
   const { viewMode } = useViewMode();
+  const isPlayerView = viewMode === 'player';
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [goals, setGoals] = useState('');
@@ -73,8 +76,12 @@ function CreateFactionModal({
         </FormField>
 
         <FormField label="Description" htmlFor="faction-description">
-          <Textarea
+          <AITextarea
             id="faction-description"
+            campaignId={campaignId}
+            entityType="faction"
+            fieldName="description"
+            entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
@@ -83,8 +90,12 @@ function CreateFactionModal({
         </FormField>
 
         <FormField label="Goals" htmlFor="faction-goals">
-          <Textarea
+          <AITextarea
             id="faction-goals"
+            campaignId={campaignId}
+            entityType="faction"
+            fieldName="goals"
+            entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
             value={goals}
             onChange={(e) => setGoals(e.target.value)}
             rows={2}
@@ -93,22 +104,42 @@ function CreateFactionModal({
         </FormField>
 
         <FormField label="Alignment / Tone" htmlFor="faction-alignment-tone">
-          <TextInput
+          <AITextInput
             id="faction-alignment-tone"
+            campaignId={campaignId}
+            entityType="faction"
+            fieldName="alignment_tone"
+            entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
             value={alignmentTone}
             onChange={(e) => setAlignmentTone(e.target.value)}
             placeholder="Lawful Neutral, secretive, militaristic…"
           />
         </FormField>
 
-        {isDm && viewMode === 'dm' && (
+        <GenerateAllFieldsButton
+          campaignId={campaignId}
+          entityType="faction"
+          entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
+          fields={[
+            { fieldName: 'description', onChange: (v) => setDescription(v) },
+            { fieldName: 'goals', onChange: (v) => setGoals(v) },
+            { fieldName: 'alignment_tone', onChange: (v) => setAlignmentTone(v) },
+            ...(!isPlayerView ? [{ fieldName: 'dm_notes', onChange: (v: string) => setDmNotes(v) }] : []),
+          ]}
+        />
+
+        {!isPlayerView && (
           <FormField
             label="DM Notes"
             htmlFor="faction-dm-notes"
             hint="Visible to DMs only — hidden agendas, true leadership, planned role"
           >
-            <Textarea
+            <AITextarea
               id="faction-dm-notes"
+              campaignId={campaignId}
+              entityType="faction"
+              fieldName="dm_notes"
+              entityDraft={{ name, description, goals, alignment_tone: alignmentTone }}
               value={dmNotes}
               onChange={(e) => setDmNotes(e.target.value)}
               rows={4}
