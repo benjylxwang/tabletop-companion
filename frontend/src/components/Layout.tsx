@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { fetchCampaign } from '../lib/api';
 import { useViewMode } from '../contexts/ViewModeContext';
+import logoIcon from '../assets/logo-icon.svg';
+import logoWordmark from '../assets/logo-wordmark.svg';
 import { useAuth } from '../lib/auth';
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
@@ -118,14 +120,9 @@ export default function Layout() {
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-[#3d2a10] px-3">
           <div className="flex items-center min-w-0">
-            {/* Logo placeholder — replace with <img> once asset exists */}
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-bold text-sm select-none">
-              TC
-            </div>
+            <img src={logoIcon} alt="Tabletop Companion" className="h-8 w-8 shrink-0" />
             {!collapsed && (
-              <span className="ml-3 font-semibold tracking-tight text-[#d4a017] truncate">
-                Tabletop Companion
-              </span>
+              <img src={logoWordmark} alt="Tabletop Companion" className="ml-3 h-5" />
             )}
           </div>
           <button
