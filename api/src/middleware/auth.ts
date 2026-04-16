@@ -1,21 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
 import { supabase } from '../lib/supabase.js';
 
-const BEARER_PREFIX = 'Bearer ';
+const BEARER_HEADER = /^bearer\s+(.+)$/i;
 
 export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const header = req.header('authorization') ?? req.header('Authorization');
-
-  if (!header || !header.startsWith(BEARER_PREFIX)) {
-    res.status(401).json({ error: 'unauthenticated' });
-    return;
-  }
-
-  const token = header.slice(BEARER_PREFIX.length).trim();
+  const token = req.header('authorization')?.match(BEARER_HEADER)?.[1]?.trim();
   if (!token) {
     res.status(401).json({ error: 'unauthenticated' });
     return;

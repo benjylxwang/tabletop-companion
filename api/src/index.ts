@@ -30,8 +30,7 @@ app.use(viewModeMiddleware);
 
 app.use(healthRouter);
 
-app.use('/api', authMiddleware);
-app.use(campaignsRouter);
+app.use('/api', authMiddleware, campaignsRouter);
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
