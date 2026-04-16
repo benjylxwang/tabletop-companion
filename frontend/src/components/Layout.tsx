@@ -83,7 +83,7 @@ export default function Layout() {
   const { viewMode, setViewMode } = useViewMode();
   const { user, signOut } = useAuth();
 
-  const campaignMatch = useMatch('/campaigns/:id/*') ?? useMatch('/campaigns/:id');
+  const campaignMatch = useMatch('/campaigns/:id/*');
   const campaignId = campaignMatch?.params.id;
 
   const { data: campaignData } = useQuery({
