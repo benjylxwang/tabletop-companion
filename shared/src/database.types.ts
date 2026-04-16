@@ -12,6 +12,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      generation_jobs: {
+        Row: {
+          id: string
+          user_id: string
+          status: 'pending' | 'running' | 'completed' | 'failed'
+          campaign_id: string | null
+          counts: Json | null
+          error: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status?: 'pending' | 'running' | 'completed' | 'failed'
+          campaign_id?: string | null
+          counts?: Json | null
+          error?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: 'pending' | 'running' | 'completed' | 'failed'
+          campaign_id?: string | null
+          counts?: Json | null
+          error?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           id: string

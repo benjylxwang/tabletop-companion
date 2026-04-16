@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   GenerateCampaignRequest,
   GenerateCampaignResponse,
+  GenerationJobResponse,
   GenerateFieldRequest,
   GenerateFieldResponse,
   GenerateImageRequest,
@@ -250,13 +251,95 @@ aiRouter.post('/generate-campaign', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { mode, campaign_id, seed, provider, generate_images } = parsed.data;
+    const { mode, campaign_id } = parsed.data;
 
-    // DM check for populate. New-campaign mode makes the caller the DM.
-    if (mode === 'populate') {
+    // DM check for all non-new modes.
+    if (mode !== 'new') {
       const role = await getCampaignRole(userId, campaign_id!);
       if (!role) throw new NotFoundError();
       if (role !== 'dm') throw new ForbiddenError();
+    }
+
+    // Create a job record and respond immediately.
+    const { data: job, error: jobError } = await supabaseService
+      .from('generation_jobs')
+      .insert({ user_id: userId })
+      .select('id')
+      .single();
+    if (jobError || !job) throw new HttpError(500, 'failed to create generation job');
+
+    const jobId = (job as { id: string }).id;
+    res.status(202).json(GenerateCampaignResponse.parse({ job_id: jobId }));
+
+    // Run the heavy work in the background — no await.
+    void runGenerationJob(jobId, parsed.data, userId);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// ─── GET /ai/jobs/:id ────────────────────────────────────────────────────────
+
+aiRouter.get('/jobs/:id', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    const { data: job, error } = await supabaseService
+      .from('generation_jobs')
+      .select('id, status, campaign_id, counts, error')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw new HttpError(500, `database error: ${error.message}`);
+    if (!job) throw new NotFoundError();
+
+    const j = job as {
+      id: string;
+      status: string;
+      campaign_id: string | null;
+      counts: Record<string, number> | null;
+      error: string | null;
+    };
+
+    res.json(
+      GenerationJobResponse.parse({
+        id: j.id,
+        status: j.status,
+        campaign_id: j.campaign_id ?? undefined,
+        counts: j.counts ?? undefined,
+        error: j.error ?? undefined,
+      }),
+    );
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// ─── Background job runner ───────────────────────────────────────────────────
+
+async function runGenerationJob(
+  jobId: string,
+  data: typeof GenerateCampaignRequest._type,
+  userId: string,
+): Promise<void> {
+  const { mode, campaign_id, seed, provider, generate_images } = data;
+
+  await supabaseService
+    .from('generation_jobs')
+    .update({ status: 'running' })
+    .eq('id', jobId);
+
+  let targetCampaignId: string | undefined;
+  try {
+    if (mode === 'generate_missing_images') {
+      await runGenerateMissingImages(campaign_id!, userId);
+      await supabaseService
+        .from('generation_jobs')
+        .update({ status: 'completed', campaign_id: campaign_id, completed_at: new Date().toISOString() })
+        .eq('id', jobId);
+      return;
     }
 
     const userPrompt = buildUserPrompt(mode, seed);
@@ -266,36 +349,158 @@ aiRouter.post('/generate-campaign', async (req, res) => {
       tool: CAMPAIGN_GENERATOR_TOOL,
       provider,
     });
-    console.log('[ai/generate-campaign] payload from provider:', JSON.stringify(payload, null, 2));
+    console.log('[runGenerationJob] payload from provider:', JSON.stringify(payload, null, 2));
 
-    const targetCampaignId =
+    targetCampaignId =
       mode === 'populate' ? campaign_id! : await createCampaignForUser(payload, userId);
 
-    try {
-      const { counts, npcIds, characterIds, locationIds } = await insertPayload(
+    const { counts, npcIds, characterIds, locationIds } = await insertPayload(
+      targetCampaignId,
+      payload,
+      mode,
+    );
+
+    if (generate_images) {
+      await generateImagesForCampaign(
         targetCampaignId,
         payload,
-        mode,
+        { npcIds, characterIds, locationIds },
+        userId,
       );
-
-      if (generate_images) {
-        await generateImagesForCampaign(targetCampaignId, payload, { npcIds, characterIds, locationIds }, userId);
-      }
-
-      res.status(201).json(
-        GenerateCampaignResponse.parse({ campaign_id: targetCampaignId, counts }),
-      );
-    } catch (err) {
-      if (mode === 'new') {
-        // Best-effort cleanup — cascade deletes take care of any partial children.
-        await supabaseService.from('campaigns').delete().eq('id', targetCampaignId);
-      }
-      throw err;
     }
+
+    await supabaseService
+      .from('generation_jobs')
+      .update({
+        status: 'completed',
+        campaign_id: targetCampaignId,
+        counts: counts as unknown as Record<string, number>,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', jobId);
   } catch (err) {
-    sendError(res, err);
+    const message = err instanceof Error ? err.message : 'unknown error';
+    console.error('[runGenerationJob] failed:', err);
+
+    if (mode === 'new' && targetCampaignId) {
+      await supabaseService.from('campaigns').delete().eq('id', targetCampaignId);
+    }
+
+    await supabaseService
+      .from('generation_jobs')
+      .update({ status: 'failed', error: message, completed_at: new Date().toISOString() })
+      .eq('id', jobId);
   }
-});
+}
+
+// ─── Generate missing images for an existing campaign ────────────────────────
+
+async function runGenerateMissingImages(campaignId: string, userId: string): Promise<void> {
+  const [campaignRes, npcsRes, charactersRes, locationsRes] = await Promise.all([
+    supabaseService
+      .from('campaigns')
+      .select('id, name, system, description')
+      .eq('id', campaignId)
+      .is('cover_image_url', null)
+      .maybeSingle(),
+    supabaseService
+      .from('npcs')
+      .select('id, name, role_title, appearance')
+      .eq('campaign_id', campaignId)
+      .is('portrait_url', null),
+    supabaseService
+      .from('characters')
+      .select('id, name, race_species, class, appearance')
+      .eq('campaign_id', campaignId)
+      .is('portrait_url', null),
+    supabaseService
+      .from('locations')
+      .select('id, name, type, description')
+      .eq('campaign_id', campaignId)
+      .is('map_image_url', null),
+  ]);
+
+  interface ImageTask {
+    prompt: string;
+    table: 'campaigns' | 'npcs' | 'characters' | 'locations';
+    id: string;
+  }
+
+  const tasks: ImageTask[] = [];
+
+  if (campaignRes.data) {
+    const c = campaignRes.data as { id: string; name: string; system: string | null; description: string | null };
+    const desc = c.description ? ` ${c.description}` : '';
+    const sys = c.system ? ` (${c.system})` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Campaign cover art for "${c.name}"${sys}.${desc}`,
+      table: 'campaigns',
+      id: c.id,
+    });
+  }
+
+  for (const n of (npcsRes.data ?? []) as { id: string; name: string; role_title: string | null; appearance: string | null }[]) {
+    const role = n.role_title ? `, ${n.role_title}` : '';
+    const appearance = n.appearance ? ` ${n.appearance}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Character portrait of ${n.name}${role}.${appearance}`,
+      table: 'npcs',
+      id: n.id,
+    });
+  }
+
+  for (const c of (charactersRes.data ?? []) as { id: string; name: string; race_species: string | null; class: string | null; appearance: string | null }[]) {
+    const race = c.race_species ? ` ${c.race_species}` : '';
+    const cls = c.class ? ` ${c.class}` : '';
+    const appearance = c.appearance ? ` ${c.appearance}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Character portrait of ${c.name},${race}${cls}.${appearance}`,
+      table: 'characters',
+      id: c.id,
+    });
+  }
+
+  for (const l of (locationsRes.data ?? []) as { id: string; name: string; type: string | null; description: string | null }[]) {
+    const typeLabel = l.type ? ` ${l.type}` : '';
+    const desc = l.description ? ` ${l.description}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE}${typeLabel ? ` A${typeLabel}` : ''} named "${l.name}".${desc}`,
+      table: 'locations',
+      id: l.id,
+    });
+  }
+
+  console.log(`[runGenerateMissingImages] ${tasks.length} images to generate for campaign ${campaignId}`);
+  if (tasks.length === 0) return;
+
+  const results = await Promise.allSettled(
+    tasks.map((task) => generateImage({ prompt: task.prompt, userId })),
+  );
+
+  await Promise.allSettled(
+    results.map(async (result, i) => {
+      const task = tasks[i];
+      if (result.status === 'rejected') {
+        console.error(`[runGenerateMissingImages] failed for ${task.table}/${task.id}:`, result.reason);
+        return;
+      }
+      const path = result.value.path;
+      let error: { message: string } | null = null;
+      if (task.table === 'campaigns') {
+        ({ error } = await supabaseService.from('campaigns').update({ cover_image_url: path }).eq('id', task.id));
+      } else if (task.table === 'npcs') {
+        ({ error } = await supabaseService.from('npcs').update({ portrait_url: path }).eq('id', task.id));
+      } else if (task.table === 'characters') {
+        ({ error } = await supabaseService.from('characters').update({ portrait_url: path }).eq('id', task.id));
+      } else if (task.table === 'locations') {
+        ({ error } = await supabaseService.from('locations').update({ map_image_url: path }).eq('id', task.id));
+      }
+      if (error) {
+        console.error(`[runGenerateMissingImages] DB update failed for ${task.table}/${task.id}:`, error);
+      }
+    }),
+  );
+}
 
 function buildUserPrompt(mode: 'new' | 'populate', seed?: string): string {
   const header =
