@@ -207,8 +207,9 @@ function extractCreateTableSql(sql) {
 
 function applyAlterTableAddColumns(allSql, tableRegistry) {
   // Matches: alter table <name> add column [if not exists] <colname> <pgtype>;
+  // Uses a non-greedy [\w\s]+? so multi-word types like "double precision" are captured whole.
   const pattern =
-    /alter\s+table\s+(\w+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(\w+)\s+([\w]+)\s*;/gi;
+    /alter\s+table\s+(\w+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(\w+)\s+([\w][\w\s]*?)\s*;/gi;
 
   let match;
   while ((match = pattern.exec(allSql)) !== null) {

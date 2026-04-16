@@ -19,11 +19,11 @@ export type Database = {
           system: string | null
           description: string | null
           cover_image_url: string | null
-          world_map_url: string | null
           status: 'Active' | 'Hiatus' | 'Complete'
           dm_notes: string | null
           created_at: string
           updated_at: string
+          world_map_url: string | null
         }
         Insert: {
           id?: string
@@ -31,11 +31,11 @@ export type Database = {
           system?: string | null
           description?: string | null
           cover_image_url?: string | null
-          world_map_url?: string | null
           status?: 'Active' | 'Hiatus' | 'Complete'
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          world_map_url?: string | null
         }
         Update: {
           id?: string
@@ -43,11 +43,11 @@ export type Database = {
           system?: string | null
           description?: string | null
           cover_image_url?: string | null
-          world_map_url?: string | null
           status?: 'Active' | 'Hiatus' | 'Complete'
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          world_map_url?: string | null
         }
         Relationships: []
       }
@@ -359,13 +359,13 @@ export type Database = {
           history: string | null
           map_image_url: string | null
           parent_location_id: string | null
-          map_x: number | null
-          map_y: number | null
           visibility: 'private' | 'public' | 'revealed'
           revealed_to: string[] | null
           dm_notes: string | null
           created_at: string
           updated_at: string
+          map_x: number | null
+          map_y: number | null
         }
         Insert: {
           id?: string
@@ -376,13 +376,13 @@ export type Database = {
           history?: string | null
           map_image_url?: string | null
           parent_location_id?: string | null
-          map_x?: number | null
-          map_y?: number | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          map_x?: number | null
+          map_y?: number | null
         }
         Update: {
           id?: string
@@ -393,13 +393,13 @@ export type Database = {
           history?: string | null
           map_image_url?: string | null
           parent_location_id?: string | null
-          map_x?: number | null
-          map_y?: number | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          map_x?: number | null
+          map_y?: number | null
         }
         Relationships: [
           {
