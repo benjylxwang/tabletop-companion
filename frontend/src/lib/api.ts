@@ -13,6 +13,7 @@ import {
   CharactersResponse,
   GenerateCampaignResponse,
   GenerateFieldResponse,
+  GenerateImageResponse,
   HealthResponse,
   LocationCreate,
   LocationResponse,
@@ -33,6 +34,7 @@ import {
 import type {
   GenerateCampaignRequest,
   GenerateFieldRequest,
+  GenerateImageRequest,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabase } from './supabase';
@@ -441,6 +443,21 @@ export async function generateFieldAi(
     throw new Error(body.error ?? `generate field ${res.status}`);
   }
   return GenerateFieldResponse.parse(await res.json());
+}
+
+export async function generateImageAi(
+  req: GenerateImageRequest,
+): Promise<GenerateImageResponse> {
+  const res = await authedFetch('/api/ai/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `generate image ${res.status}`);
+  }
+  return GenerateImageResponse.parse(await res.json());
 }
 
 export async function fetchCampaignInvitations(campaignId: string): Promise<CampaignPendingInvitationsResponse> {

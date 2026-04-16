@@ -3,6 +3,7 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { GenerateCampaignMode } from '@tabletop/shared';
 import { generateCampaignAi } from '../lib/api';
+import { useAIProvider } from '../contexts/AIProviderContext';
 import { Button, FormField, Modal, Textarea } from '.';
 import { useDevGeneratorShortcut } from '../hooks/useDevGeneratorShortcut';
 
@@ -15,6 +16,7 @@ export function DevGeneratorModal() {
 
   const campaignMatch = useMatch('/campaigns/:id/*');
   const currentCampaignId = campaignMatch?.params.id ?? null;
+  const { provider } = useAIProvider();
 
   const onShortcut = useCallback(() => {
     setOpen((v) => !v);
@@ -29,6 +31,7 @@ export function DevGeneratorModal() {
         mode,
         campaign_id: mode === 'populate' ? currentCampaignId ?? undefined : undefined,
         seed: seed.trim() || undefined,
+        provider,
       }),
     onSuccess: ({ campaign_id }) => {
       void queryClient.invalidateQueries({ queryKey: ['campaigns'] });

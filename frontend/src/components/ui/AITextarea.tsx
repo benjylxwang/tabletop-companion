@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { GenerateFieldEntityType } from '@tabletop/shared';
 import { generateFieldAi } from '../../lib/api';
+import { useAIProvider } from '../../contexts/AIProviderContext';
 import { Textarea } from './Textarea';
 import { Spinner } from './Spinner';
 
@@ -34,6 +35,7 @@ export function AITextarea({
 }: AITextareaProps) {
   const [loading, setLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const { provider } = useAIProvider();
 
   async function handleGenerate() {
     setLoading(true);
@@ -45,6 +47,7 @@ export function AITextarea({
         field_name: fieldName,
         entity_draft: entityDraft,
         user_hint: userHint,
+        provider,
       });
       onChange(synthEvent(text));
     } catch (err) {

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { fetchCampaign } from '../lib/api';
 import { useViewMode } from '../contexts/ViewModeContext';
+import { useAIProvider } from '../contexts/AIProviderContext';
 import logoIcon from '../assets/logo-icon.svg';
 import logoWordmark from '../assets/logo-wordmark.svg';
 import { useAuth } from '../lib/auth';
@@ -81,6 +82,7 @@ function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState<boolean>(loadCollapsed);
   const { viewMode, setViewMode } = useViewMode();
+  const { provider, setProvider } = useAIProvider();
   const { user, signOut } = useAuth();
 
   const campaignMatch = useMatch('/campaigns/:id/*');
@@ -210,6 +212,51 @@ export default function Layout() {
             </>
           )}
         </nav>
+
+        {/* AI provider toggle — only shown for DMs inside a campaign */}
+        {campaignId && isDm && (
+          <div className="border-t border-[#3d2a10] px-2 py-3">
+            {!collapsed && (
+              <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-[#b8860b]">
+                AI Provider
+              </p>
+            )}
+            <div
+              className="flex rounded-md overflow-hidden border border-[#3d2a10] text-xs"
+              role="group"
+              aria-label="AI provider toggle"
+            >
+              <button
+                onClick={() => setProvider('anthropic')}
+                title="Claude (Anthropic)"
+                aria-pressed={provider === 'anthropic'}
+                className={[
+                  'flex flex-1 items-center justify-center gap-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
+                  provider === 'anthropic'
+                    ? 'bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-semibold'
+                    : 'bg-[#2a1a0a] text-[#b8860b] hover:text-[#f5f0e0]',
+                ].join(' ')}
+              >
+                {!collapsed && <span>Claude</span>}
+                {collapsed && <span title="Claude">C</span>}
+              </button>
+              <button
+                onClick={() => setProvider('deepinfra')}
+                title="DeepInfra"
+                aria-pressed={provider === 'deepinfra'}
+                className={[
+                  'flex flex-1 items-center justify-center gap-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
+                  provider === 'deepinfra'
+                    ? 'bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-semibold'
+                    : 'bg-[#2a1a0a] text-[#b8860b] hover:text-[#f5f0e0]',
+                ].join(' ')}
+              >
+                {!collapsed && <span>DeepInfra</span>}
+                {collapsed && <span title="DeepInfra">D</span>}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* DM / Player toggle — only shown for DMs inside a campaign */}
         {campaignId && isDm && (

@@ -15,6 +15,7 @@ import {
   ErrorDisplay,
   FileUpload,
   FormField,
+  GenerateImageButton,
   Spinner,
   TextInput,
 } from '../../components';
@@ -48,13 +49,16 @@ export default function CharacterDetail() {
   // ─── Edit form state ────────────────────────────────────────────────────────
   const [name, setName] = useState('');
   const [sheetPath, setSheetPath] = useState<string | null>(null);
+  const [portraitPath, setPortraitPath] = useState<string | null>(null);
 
   const sheetSignedUrl = useSignedUrl(character?.character_sheet_url);
+  const portraitSignedUrl = useSignedUrl(character?.portrait_url);
 
   function openEdit() {
     if (!character) return;
     setName(character.name);
     setSheetPath(character.character_sheet_url ?? null);
+    setPortraitPath(character.portrait_url ?? null);
     setEditing(true);
   }
 
@@ -63,6 +67,7 @@ export default function CharacterDetail() {
       updateCharacter(campaignId!, charId!, {
         name,
         character_sheet_url: sheetPath,
+        portrait_url: portraitPath,
       }),
     onSuccess: (updated) => {
       queryClient.setQueryData(['character', campaignId, charId, viewMode], updated);
@@ -140,6 +145,19 @@ export default function CharacterDetail() {
             />
           </FormField>
 
+          <FormField label="Portrait" htmlFor="edit-char-portrait" hint="AI-generated portrait image">
+            <GenerateImageButton
+              campaignId={campaignId!}
+              entityType="character"
+              entityId={charId!}
+              fieldName="portrait_url"
+              onGenerated={(path) => setPortraitPath(path)}
+            />
+            {portraitPath && (
+              <p className="mt-1 text-xs text-slate-500 truncate">{portraitPath}</p>
+            )}
+          </FormField>
+
           {updateMutation.error && (
             <p role="alert" className="text-sm text-red-400">
               Failed to update character. Please try again.
@@ -200,6 +218,16 @@ export default function CharacterDetail() {
           </div>
         )}
       </div>
+
+      {character.portrait_url && portraitSignedUrl.url && (
+        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
+          <img
+            src={portraitSignedUrl.url}
+            alt={`Portrait of ${character.name}`}
+            className="w-full max-h-96 object-contain"
+          />
+        </div>
+      )}
 
       {character.character_sheet_url != null && !sheetSignedUrl.isLoading && (
         <section className="mt-6">

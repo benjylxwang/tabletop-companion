@@ -16,6 +16,7 @@ import {
   ErrorDisplay,
   FileUpload,
   FormField,
+  GenerateImageButton,
   Select,
   Spinner,
   TextInput,
@@ -204,16 +205,25 @@ export default function LocationDetail() {
           <FormField
             label="Map Image"
             htmlFor="edit-loc-map"
-            hint="PNG or JPG, up to 10 MB"
+            hint="Upload a file or generate with AI"
           >
-            <FileUpload
-              accept="image/png,image/jpeg"
-              allowedMimeTypes={['image/png', 'image/jpeg']}
-              currentPath={mapPath}
-              currentUrl={editMapSignedUrl.url}
-              uploadFile={uploadFile}
-              onUploaded={(result) => setMapPath(result?.path ?? null)}
-            />
+            <div className="space-y-2">
+              <FileUpload
+                accept="image/png,image/jpeg"
+                allowedMimeTypes={['image/png', 'image/jpeg']}
+                currentPath={mapPath}
+                currentUrl={editMapSignedUrl.url}
+                uploadFile={uploadFile}
+                onUploaded={(result) => setMapPath(result?.path ?? null)}
+              />
+              <GenerateImageButton
+                campaignId={campaignId!}
+                entityType="location"
+                entityId={locationId!}
+                fieldName="map_image_url"
+                onGenerated={(path) => setMapPath(path)}
+              />
+            </div>
           </FormField>
 
           {!isPlayerView && (

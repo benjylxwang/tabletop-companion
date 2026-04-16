@@ -6,6 +6,7 @@ export { ConfirmModal, Modal } from './ui/Modal';
 export { EmptyState } from './ui/EmptyState';
 export { ErrorDisplay } from './ui/ErrorDisplay';
 export { FileUpload } from './ui/FileUpload';
+export { GenerateImageButton } from './ui/GenerateImageButton';
 export { FormField } from './ui/FormField';
 export { Select } from './ui/Select';
 export { Skeleton } from './ui/Skeleton';
