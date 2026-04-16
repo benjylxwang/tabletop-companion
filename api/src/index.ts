@@ -54,7 +54,7 @@ app.use('/api/ai', authMiddleware, aiRouter);
 app.use('/api/uploads', authMiddleware, uploadsRouter);
 
 const port = Number(process.env.PORT) || 3000;
-app.listen(port, async () => {
+const server = app.listen(port, async () => {
   console.log(`api listening on :${port}`);
   try {
     await ensureUploadsBucket();
@@ -62,3 +62,4 @@ app.listen(port, async () => {
     console.error('failed to ensure uploads bucket on startup', err);
   }
 });
+server.keepAliveTimeout = 65_000;

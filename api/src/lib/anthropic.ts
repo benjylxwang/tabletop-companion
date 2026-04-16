@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { HttpError } from './httpErrors.js';
 
-export const MODEL = 'claude-sonnet-4-5';
+export const MODEL = 'claude-sonnet-4-6';
 
 export interface GenerateJsonTool {
   name: string;
@@ -23,7 +23,7 @@ function getClient(): Anthropic {
   if (!key) {
     throw new HttpError(503, 'AI features are disabled: ANTHROPIC_API_KEY is not configured');
   }
-  client = new Anthropic({ apiKey: key });
+  client = new Anthropic({ apiKey: key, timeout: 120_000 });
   return client;
 }
 
