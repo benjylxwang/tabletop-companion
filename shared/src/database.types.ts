@@ -12,39 +12,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      generation_jobs: {
-        Row: {
-          id: string
-          user_id: string
-          status: 'pending' | 'running' | 'completed' | 'failed'
-          campaign_id: string | null
-          counts: Json | null
-          error: string | null
-          created_at: string
-          completed_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          status?: 'pending' | 'running' | 'completed' | 'failed'
-          campaign_id?: string | null
-          counts?: Json | null
-          error?: string | null
-          created_at?: string
-          completed_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          status?: 'pending' | 'running' | 'completed' | 'failed'
-          campaign_id?: string | null
-          counts?: Json | null
-          error?: string | null
-          created_at?: string
-          completed_at?: string | null
-        }
-        Relationships: []
-      }
       campaigns: {
         Row: {
           id: string
@@ -187,13 +154,13 @@ export type Database = {
           personality: string | null
           goals_bonds: string | null
           character_sheet_url: string | null
-          portrait_url: string | null
           journal: string | null
           visibility: 'private' | 'public' | 'revealed'
           revealed_to: string[] | null
           dm_notes: string | null
           created_at: string
           updated_at: string
+          portrait_url: string | null
         }
         Insert: {
           id?: string
@@ -208,13 +175,13 @@ export type Database = {
           personality?: string | null
           goals_bonds?: string | null
           character_sheet_url?: string | null
-          portrait_url?: string | null
           journal?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          portrait_url?: string | null
         }
         Update: {
           id?: string
@@ -229,13 +196,13 @@ export type Database = {
           personality?: string | null
           goals_bonds?: string | null
           character_sheet_url?: string | null
-          portrait_url?: string | null
           journal?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          portrait_url?: string | null
         }
         Relationships: [
           {
@@ -310,12 +277,12 @@ export type Database = {
           status: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id: string | null
           faction_id: string | null
-          portrait_url: string | null
           visibility: 'private' | 'public' | 'revealed'
           revealed_to: string[] | null
           dm_notes: string | null
           created_at: string
           updated_at: string
+          portrait_url: string | null
         }
         Insert: {
           id?: string
@@ -329,12 +296,12 @@ export type Database = {
           status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
-          portrait_url?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          portrait_url?: string | null
         }
         Update: {
           id?: string
@@ -348,12 +315,12 @@ export type Database = {
           status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
-          portrait_url?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
+          portrait_url?: string | null
         }
         Relationships: [
           {
@@ -669,6 +636,54 @@ export type Database = {
             columns: ["id"]
             isOneToOne: false
             referencedRelation: "auth.users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      generation_jobs: {
+        Row: {
+          id: string
+          user_id: string
+          status: 'pending' | 'running' | 'completed' | 'failed'
+          campaign_id: string | null
+          counts: Json | null
+          error: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status?: 'pending' | 'running' | 'completed' | 'failed'
+          campaign_id?: string | null
+          counts?: Json | null
+          error?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: 'pending' | 'running' | 'completed' | 'failed'
+          campaign_id?: string | null
+          counts?: Json | null
+          error?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth.users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generation_jobs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           }
         ]

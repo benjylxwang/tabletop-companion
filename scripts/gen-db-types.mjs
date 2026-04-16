@@ -79,40 +79,37 @@ function extractEnum(constraints) {
 }
 
 // ---------------------------------------------------------------------------
-// Per-table processing
+// Column entry building and table emission
 // ---------------------------------------------------------------------------
 
-function processTable(node) {
-  const tableName = node.name.name;
-  const triggerAssigned = TRIGGER_ASSIGNED[tableName] ?? new Set();
-  const columns = (node.columns ?? []).filter((c) => c.kind === 'column');
+function buildColumnEntry(col, triggerAssigned) {
+  const colName = col.name.name;
+  const constraints = col.constraints ?? [];
 
+  const isNotNull = constraints.some(
+    (c) => c.type === 'not null' || c.type === 'primary key',
+  );
+  const hasDefault =
+    constraints.some((c) => c.type === 'default' || c.type === 'primary key') ||
+    triggerAssigned.has(colName);
+  const fk = constraints.find((c) => c.type === 'reference');
+  const enumLiteral = extractEnum(constraints);
+
+  const baseType = enumLiteral ?? pgTypeToTs(col.dataType);
+  const nullableSuffix = isNotNull ? '' : ' | null';
+
+  return { colName, baseType, nullableSuffix, isNotNull, hasDefault, fk };
+}
+
+function emitTable(tableName, columnEntries) {
   const rowFields = [];
   const insertFields = [];
   const updateFields = [];
   const relationships = [];
 
-  for (const col of columns) {
-    const colName = col.name.name;
-    const constraints = col.constraints ?? [];
-
-    const isNotNull = constraints.some(
-      (c) => c.type === 'not null' || c.type === 'primary key',
-    );
-    const hasDefault =
-      constraints.some((c) => c.type === 'default' || c.type === 'primary key') ||
-      triggerAssigned.has(colName);
-    const fk = constraints.find((c) => c.type === 'reference');
-    const enumLiteral = extractEnum(constraints);
-    const isArray = col.dataType.kind === 'array';
-
-    const baseType = enumLiteral ?? pgTypeToTs(col.dataType);
-    const nullableSuffix = isNotNull ? '' : ' | null';
-
-    // Row: all columns present; nullable when no NOT NULL
+  for (const { colName, baseType, nullableSuffix, isNotNull, hasDefault, fk } of columnEntries) {
     rowFields.push(`          ${colName}: ${baseType}${nullableSuffix}`);
 
-    // Insert: optional when has default or trigger-assigned; nullable when nullable
     if (hasDefault) {
       insertFields.push(`          ${colName}?: ${baseType}${nullableSuffix}`);
     } else if (isNotNull) {
@@ -121,10 +118,8 @@ function processTable(node) {
       insertFields.push(`          ${colName}?: ${baseType} | null`);
     }
 
-    // Update: all optional; preserve nullability
     updateFields.push(`          ${colName}?: ${baseType}${nullableSuffix}`);
 
-    // Relationships
     if (fk) {
       const refTable = fk.foreignTable.schema
         ? `${fk.foreignTable.schema}.${fk.foreignTable.name}`
@@ -205,6 +200,38 @@ function extractCreateTableSql(sql) {
 }
 
 // ---------------------------------------------------------------------------
+// Apply ALTER TABLE ... ADD COLUMN statements to the table registry.
+// Uses regex (not AST) because pgsql-ast-parser may not handle IF NOT EXISTS.
+// Handles: ALTER TABLE <tbl> ADD COLUMN [IF NOT EXISTS] <col> <type>;
+// ---------------------------------------------------------------------------
+
+function applyAlterTableAddColumns(allSql, tableRegistry) {
+  // Matches: alter table <name> add column [if not exists] <colname> <pgtype>;
+  const pattern =
+    /alter\s+table\s+(\w+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(\w+)\s+([\w]+)\s*;/gi;
+
+  let match;
+  while ((match = pattern.exec(allSql)) !== null) {
+    const [, tableName, colName, pgTypeName] = match;
+    const tableData = tableRegistry.get(tableName);
+    if (!tableData) continue;
+
+    // Skip if column already present (idempotent)
+    if (tableData.columnEntries.some((c) => c.colName === colName)) continue;
+
+    const baseType = pgTypeToTs({ name: pgTypeName, kind: 'simple' });
+    tableData.columnEntries.push({
+      colName,
+      baseType,
+      nullableSuffix: ' | null', // ADD COLUMN without NOT NULL is nullable
+      isNotNull: false,
+      hasDefault: false,
+      fk: null,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -218,11 +245,30 @@ for (const file of migrationFiles) {
   allSql += readFileSync(join(migrationsDir, file), 'utf-8') + '\n';
 }
 
+// 1. Parse CREATE TABLE → build table registry preserving creation order
 const createTableSql = extractCreateTableSql(allSql);
 const ast = parse(createTableSql);
 const createTables = ast.filter((s) => s.type === 'create table');
 
-const tableEntries = createTables.map(processTable).join('\n');
+/** @type {Map<string, { triggerAssigned: Set<string>, columnEntries: object[] }>} */
+const tableRegistry = new Map();
+for (const node of createTables) {
+  const tableName = node.name.name;
+  const triggerAssigned = TRIGGER_ASSIGNED[tableName] ?? new Set();
+  const columns = (node.columns ?? []).filter((c) => c.kind === 'column');
+  tableRegistry.set(tableName, {
+    triggerAssigned,
+    columnEntries: columns.map((col) => buildColumnEntry(col, triggerAssigned)),
+  });
+}
+
+// 2. Apply ALTER TABLE ADD COLUMN modifications
+applyAlterTableAddColumns(allSql, tableRegistry);
+
+// 3. Emit TypeScript
+const tableEntries = Array.from(tableRegistry.entries())
+  .map(([tableName, { columnEntries }]) => emitTable(tableName, columnEntries))
+  .join('\n');
 
 const output = `// AUTO-GENERATED from supabase/migrations — do not edit manually.
 // Regenerate: pnpm gen:types
@@ -257,4 +303,4 @@ export type TablesUpdate<T extends keyof Database['public']['Tables']> =
 
 const outputPath = join(ROOT, 'shared/src/database.types.ts');
 writeFileSync(outputPath, output, 'utf-8');
-console.log(`Generated ${outputPath} (${createTables.length} tables)`);
+console.log(`Generated ${outputPath} (${tableRegistry.size} tables)`);
