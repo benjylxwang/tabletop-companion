@@ -32,8 +32,8 @@ create table campaigns (
   system          text,
   description     text,
   cover_image_url text,
-  status          text        not null default 'active'
-                              check (status in ('active', 'hiatus', 'complete')),
+  status          text        not null default 'Active'
+                              check (status in ('Active', 'Hiatus', 'Complete')),
   dm_notes        text,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
