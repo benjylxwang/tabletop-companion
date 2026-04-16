@@ -141,9 +141,4 @@ test.describe('Campaign permission model (API)', () => {
   });
 });
 
-test.describe('Campaign list page (UI)', () => {
-  test('renders and redirects to /login when unauthenticated', async ({ page }) => {
-    await page.goto('/campaigns');
-    await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
-  });
-});
+// Auth redirect is already covered by tests/auth.spec.ts (Auth UI flow describe block).
