@@ -176,115 +176,42 @@ describe('POST /ai/generate-campaign', () => {
     expect(res._status).toHaveBeenCalledWith(404);
   });
 
-  it('creates a new campaign and inserts all children in FK order', async () => {
-    mockGenerateJson.mockResolvedValue(PAYLOAD);
-
-    // Track call order + synthesize ids that match ref counts.
-    const tableCalls: string[] = [];
-    const makeIdRows = (n: number, prefix: string) =>
-      Array.from({ length: n }, (_, i) => ({ id: `${prefix}-${i}` }));
-
+  it('creates a job and responds 202 for new campaign mode', async () => {
     mockFrom.mockImplementation((table: string) => {
-      tableCalls.push(table);
-      switch (table) {
-        case 'campaigns':
-          // First call: insert campaign → returns { id: 'new-camp' }
-          // Later calls (for the location parent update) also go through here.
-          return makeChain(
-            { data: [{ id: 'new-camp' }], error: null },
-            { data: { id: 'new-camp' }, error: null },
-          );
-        case 'campaign_members':
-          return makeChain({ data: null, error: null });
-        case 'factions':
-          return makeChain({ data: makeIdRows(PAYLOAD.factions.length, 'fac'), error: null });
-        case 'sessions':
-          return makeChain({ data: makeIdRows(PAYLOAD.sessions.length, 'ses'), error: null });
-        case 'locations':
-          return makeChain({ data: makeIdRows(PAYLOAD.locations.length, 'loc'), error: null });
-        case 'npcs':
-          return makeChain({ data: makeIdRows(PAYLOAD.npcs.length, 'npc'), error: null });
-        case 'characters':
-          return makeChain({
-            data: makeIdRows(PAYLOAD.characters.length, 'char'),
-            error: null,
-          });
-        case 'lore':
-          return makeChain({ data: makeIdRows(PAYLOAD.lore.length, 'lore'), error: null });
-        default:
-          throw new Error(`unexpected table: ${table}`);
+      if (table === 'generation_jobs') {
+        return makeChain({ data: null, error: null }, { data: { id: 'job-1' }, error: null });
       }
+      throw new Error(`unexpected table in submission: ${table}`);
     });
 
     const req = makeReq({ body: { mode: 'new', seed: 'high-fantasy heist' } });
     const res = makeRes();
     await handler(req, res);
 
-    // Should return 201 with the new campaign id + counts
-    expect(res._status).toHaveBeenCalledWith(201);
+    expect(res._status).toHaveBeenCalledWith(202);
     const body = (res._status as ReturnType<typeof vi.fn>).mock.results[0].value.json.mock
       .calls[0][0];
-    expect(body.campaign_id).toBe('new-camp');
-    expect(body.counts).toEqual({
-      factions: PAYLOAD.factions.length,
-      sessions: PAYLOAD.sessions.length,
-      locations: PAYLOAD.locations.length,
-      npcs: PAYLOAD.npcs.length,
-      characters: PAYLOAD.characters.length,
-      lore: PAYLOAD.lore.length,
-    });
-
-    // FK order: campaign row first, then factions before npcs, sessions before npcs,
-    // locations before npcs, npcs before characters/lore is not strictly required
-    // but we assert the documented sequence.
-    const relevant = tableCalls.filter((t) =>
-      ['campaigns', 'factions', 'sessions', 'locations', 'npcs', 'characters', 'lore'].includes(t),
-    );
-    expect(relevant.indexOf('campaigns')).toBeLessThan(relevant.indexOf('factions'));
-    expect(relevant.indexOf('factions')).toBeLessThan(relevant.indexOf('npcs'));
-    expect(relevant.indexOf('sessions')).toBeLessThan(relevant.indexOf('npcs'));
-    expect(relevant.indexOf('locations')).toBeLessThan(relevant.indexOf('npcs'));
-
-    // One extra locations write to resolve the parent_ref
-    expect(tableCalls.filter((t) => t === 'locations').length).toBe(2);
+    expect(body.job_id).toBe('job-1');
   });
 
-  it('populates an existing campaign without creating a new one', async () => {
-    mockGenerateJson.mockResolvedValue(PAYLOAD);
+  it('creates a job and responds 202 for populate mode', async () => {
     mockGetCampaignRole.mockResolvedValue('dm');
 
-    const tableCalls: string[] = [];
-    const makeIdRows = (n: number, p: string) =>
-      Array.from({ length: n }, (_, i) => ({ id: `${p}-${i}` }));
-
     mockFrom.mockImplementation((table: string) => {
-      tableCalls.push(table);
-      if (table === 'campaigns') return makeChain({ data: null, error: null });
-      if (table === 'factions')
-        return makeChain({ data: makeIdRows(PAYLOAD.factions.length, 'fac'), error: null });
-      if (table === 'sessions')
-        return makeChain({ data: makeIdRows(PAYLOAD.sessions.length, 'ses'), error: null });
-      if (table === 'locations')
-        return makeChain({ data: makeIdRows(PAYLOAD.locations.length, 'loc'), error: null });
-      if (table === 'npcs')
-        return makeChain({ data: makeIdRows(PAYLOAD.npcs.length, 'npc'), error: null });
-      if (table === 'characters')
-        return makeChain({ data: makeIdRows(PAYLOAD.characters.length, 'ch'), error: null });
-      if (table === 'lore')
-        return makeChain({ data: makeIdRows(PAYLOAD.lore.length, 'lo'), error: null });
-      throw new Error(`unexpected: ${table}`);
+      if (table === 'generation_jobs') {
+        return makeChain({ data: null, error: null }, { data: { id: 'job-2' }, error: null });
+      }
+      throw new Error(`unexpected table in submission: ${table}`);
     });
 
     const req = makeReq({ body: { mode: 'populate', campaign_id: 'existing-camp' } });
     const res = makeRes();
     await handler(req, res);
 
-    expect(res._status).toHaveBeenCalledWith(201);
+    expect(res._status).toHaveBeenCalledWith(202);
     const body = (res._status as ReturnType<typeof vi.fn>).mock.results[0].value.json.mock
       .calls[0][0];
-    expect(body.campaign_id).toBe('existing-camp');
-    // No campaign_members insert in populate mode
-    expect(tableCalls).not.toContain('campaign_members');
+    expect(body.job_id).toBe('job-2');
   });
 });
 

@@ -393,7 +393,7 @@ export type LoreResponse = z.infer<typeof LoreResponse>;
 // Used by the "secret" dev generator (Ctrl+Shift+G) and the per-field AI assist
 // on AITextInput / AITextarea. DM-only at the API layer.
 
-export const GenerateCampaignMode = z.enum(['new', 'populate']);
+export const GenerateCampaignMode = z.enum(['new', 'populate', 'generate_missing_images']);
 export type GenerateCampaignMode = z.infer<typeof GenerateCampaignMode>;
 
 export const AIProvider = z.enum(['anthropic', 'deepinfra']);
@@ -408,7 +408,7 @@ export const GenerateCampaignRequest = z
     generate_images: z.boolean().optional(),
   })
   .refine((v) => v.mode === 'new' || !!v.campaign_id, {
-    message: 'campaign_id is required when mode is "populate"',
+    message: 'campaign_id is required for this mode',
     path: ['campaign_id'],
   });
 export type GenerateCampaignRequest = z.infer<typeof GenerateCampaignRequest>;
@@ -423,11 +423,19 @@ export const GenerateCampaignCounts = z.object({
 });
 export type GenerateCampaignCounts = z.infer<typeof GenerateCampaignCounts>;
 
-export const GenerateCampaignResponse = z.object({
-  campaign_id: z.string(),
-  counts: GenerateCampaignCounts,
-});
+// Immediate 202 response from POST /ai/generate-campaign
+export const GenerateCampaignResponse = z.object({ job_id: z.string() });
 export type GenerateCampaignResponse = z.infer<typeof GenerateCampaignResponse>;
+
+// Polling response from GET /api/ai/jobs/:id
+export const GenerationJobResponse = z.object({
+  id: z.string(),
+  status: z.enum(['pending', 'running', 'completed', 'failed']),
+  campaign_id: z.string().optional(),
+  counts: GenerateCampaignCounts.optional(),
+  error: z.string().optional(),
+});
+export type GenerationJobResponse = z.infer<typeof GenerationJobResponse>;
 
 export const GenerateFieldEntityType = z.enum([
   'campaign',

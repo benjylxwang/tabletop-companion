@@ -16,6 +16,7 @@ import {
   FactionUpdate,
   FactionsResponse,
   GenerateCampaignResponse,
+  GenerationJobResponse,
   GenerateFieldResponse,
   GenerateImageResponse,
   HealthResponse,
@@ -560,6 +561,15 @@ export async function generateCampaignAi(
     throw new Error(body.error ?? `generate campaign ${res.status}`);
   }
   return GenerateCampaignResponse.parse(await res.json());
+}
+
+export async function pollGenerationJob(jobId: string): Promise<GenerationJobResponse> {
+  const res = await authedFetch(`/api/ai/jobs/${jobId}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `poll job ${res.status}`);
+  }
+  return GenerationJobResponse.parse(await res.json());
 }
 
 export async function generateFieldAi(
