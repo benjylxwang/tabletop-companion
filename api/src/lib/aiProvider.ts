@@ -7,10 +7,11 @@ import {
   generateJson as deepinfraJson,
   generateText as deepinfraText,
   generateImage,
+  generateImageLargeFormat,
 } from './deepinfra.js';
 
 export type { GenerateJsonTool };
-export { generateImage };
+export { generateImage, generateImageLargeFormat };
 
 type Provider = 'anthropic' | 'deepinfra';
 

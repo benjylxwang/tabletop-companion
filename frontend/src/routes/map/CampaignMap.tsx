@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MapPin } from 'lucide-react';
+import { MapPin, Trash2 } from 'lucide-react';
 import {
   fetchCampaign,
   fetchLocations,
@@ -13,6 +13,7 @@ import { useViewMode } from '../../contexts/ViewModeContext';
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import { FileUpload } from '../../components/ui/FileUpload';
 import { GenerateImageButton } from '../../components/ui/GenerateImageButton';
+import { ConfirmModal } from '../../components/ui/Modal';
 import type { Location } from '@tabletop/shared';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -109,6 +110,7 @@ export default function CampaignMap() {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [hoveredLocationId, setHoveredLocationId] = useState<string | null>(null);
   const [placingLocationId, setPlacingLocationId] = useState<string | null>(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [dragState, setDragState] = useState<{
     locationId: string;
     x: number;
@@ -270,7 +272,7 @@ export default function CampaignMap() {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-hidden p-6">
+    <div className="flex flex-col gap-4 p-6">
       {/* Header */}
       <div className="flex shrink-0 flex-wrap items-start justify-between gap-4">
         <div>
@@ -285,8 +287,6 @@ export default function CampaignMap() {
             <FileUpload
               accept="image/png,image/jpeg"
               allowedMimeTypes={['image/png', 'image/jpeg']}
-              currentPath={campaign?.world_map_url ?? null}
-              currentUrl={worldMapUrl.url}
               uploadFile={uploadFile}
               onUploaded={(result) => updateWorldMapMutation.mutate(result?.path ?? null)}
             />
@@ -297,119 +297,127 @@ export default function CampaignMap() {
               fieldName="world_map_url"
               onGenerated={(path) => updateWorldMapMutation.mutate(path)}
             />
+            {worldMapUrl.url && (
+              <button
+                type="button"
+                onClick={() => setShowRemoveConfirm(true)}
+                className="flex items-center gap-1 text-xs text-slate-600 hover:text-red-400 transition-colors"
+                title="Remove world map"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove map
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Map area */}
       {worldMapUrl.url ? (
-        <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-700/50 bg-slate-950">
-          {/* Container stretches to image natural aspect ratio */}
-          <div className="relative w-full">
-            <div
-              ref={mapContainerRef}
-              className={`relative w-full select-none ${
-                placingLocationId
-                  ? 'cursor-crosshair'
-                  : dragState
-                    ? 'cursor-grabbing'
-                    : ''
-              }`}
-              onClick={handleMapClick}
-            >
-              <img
-                src={worldMapUrl.url}
-                alt="World map"
-                className="block w-full"
-                draggable={false}
-                onLoad={(e) => {
-                  const img = e.currentTarget;
-                  const rect = img.getBoundingClientRect();
-                  setContainerSize({ width: rect.width, height: rect.height });
-                }}
-              />
+        <div className="rounded-xl border border-slate-700/50 bg-slate-950">
+          <div
+            ref={mapContainerRef}
+            className={`relative w-full select-none ${
+              placingLocationId
+                ? 'cursor-crosshair'
+                : dragState
+                  ? 'cursor-grabbing'
+                  : ''
+            }`}
+            onClick={handleMapClick}
+          >
+            <img
+              src={worldMapUrl.url}
+              alt="World map"
+              className="block w-full rounded-xl"
+              draggable={false}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                const rect = img.getBoundingClientRect();
+                setContainerSize({ width: rect.width, height: rect.height });
+              }}
+            />
 
-              {/* Placed markers */}
-              {placedLocations.map((location) => {
-                const isHovered = hoveredLocationId === location.id && !dragState;
-                const isDragging = dragState?.locationId === location.id;
-                const x = isDragging ? dragState!.x : location.map_x!;
-                const y = isDragging ? dragState!.y : location.map_y!;
+            {/* Placed markers */}
+            {placedLocations.map((location) => {
+              const isHovered = hoveredLocationId === location.id && !dragState;
+              const isDragging = dragState?.locationId === location.id;
+              const x = isDragging ? dragState!.x : location.map_x!;
+              const y = isDragging ? dragState!.y : location.map_y!;
 
-                return (
+              return (
+                <div
+                  key={location.id}
+                  className="pointer-events-auto absolute flex flex-col items-center"
+                  style={{
+                    left: `${x * 100}%`,
+                    top: `${y * 100}%`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: isHovered || isDragging ? 10 : 5,
+                  }}
+                  onMouseEnter={() => setHoveredLocationId(location.id)}
+                  onMouseLeave={() => setHoveredLocationId(null)}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={
+                    isDm && !placingLocationId
+                      ? (e) => {
+                          e.stopPropagation();
+                          setHoveredLocationId(null);
+                          const container = mapContainerRef.current;
+                          if (!container) return;
+                          const rect = container.getBoundingClientRect();
+                          setDragState({
+                            locationId: location.id,
+                            x: Math.max(0.01, Math.min(0.99, (e.clientX - rect.left) / rect.width)),
+                            y: Math.max(0.01, Math.min(0.99, (e.clientY - rect.top) / rect.height)),
+                          });
+                        }
+                      : undefined
+                  }
+                >
                   <div
-                    key={location.id}
-                    className="pointer-events-auto absolute flex flex-col items-center"
+                    className={`rounded-full border-2 shadow-md transition-all duration-100 ${
+                      isDm && !placingLocationId ? 'cursor-grab active:cursor-grabbing' : ''
+                    } ${
+                      isHovered
+                        ? 'scale-150 border-white bg-amber-300 shadow-amber-500/50'
+                        : isDragging
+                          ? 'scale-150 border-amber-100 bg-amber-400'
+                          : 'border-amber-200 bg-amber-500'
+                    }`}
+                    style={{ width: DOT_R * 2, height: DOT_R * 2 }}
+                  />
+                  <span
+                    className={`mt-1 max-w-[80px] text-center text-[10px] font-medium leading-tight text-white ${
+                      isHovered ? 'underline' : ''
+                    }`}
                     style={{
-                      left: `${x * 100}%`,
-                      top: `${y * 100}%`,
-                      transform: 'translate(-50%, -50%)',
-                      zIndex: isHovered || isDragging ? 10 : 5,
+                      textShadow:
+                        '0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)',
                     }}
-                    onMouseEnter={() => setHoveredLocationId(location.id)}
-                    onMouseLeave={() => setHoveredLocationId(null)}
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={
-                      isDm && !placingLocationId
-                        ? (e) => {
-                            e.stopPropagation();
-                            setHoveredLocationId(null);
-                            const container = mapContainerRef.current;
-                            if (!container) return;
-                            const rect = container.getBoundingClientRect();
-                            setDragState({
-                              locationId: location.id,
-                              x: Math.max(0.01, Math.min(0.99, (e.clientX - rect.left) / rect.width)),
-                              y: Math.max(0.01, Math.min(0.99, (e.clientY - rect.top) / rect.height)),
-                            });
-                          }
-                        : undefined
-                    }
                   >
-                    <div
-                      className={`rounded-full border-2 shadow-md transition-all duration-100 ${
-                        isDm && !placingLocationId ? 'cursor-grab active:cursor-grabbing' : ''
-                      } ${
-                        isHovered
-                          ? 'scale-150 border-white bg-amber-300 shadow-amber-500/50'
-                          : isDragging
-                            ? 'scale-150 border-amber-100 bg-amber-400'
-                            : 'border-amber-200 bg-amber-500'
-                      }`}
-                      style={{ width: DOT_R * 2, height: DOT_R * 2 }}
-                    />
-                    <span
-                      className={`mt-1 max-w-[80px] text-center text-[10px] font-medium leading-tight text-white ${
-                        isHovered ? 'underline' : ''
-                      }`}
-                      style={{
-                        textShadow:
-                          '0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)',
-                      }}
-                    >
-                      {location.name}
-                    </span>
-                  </div>
-                );
-              })}
+                    {location.name}
+                  </span>
+                </div>
+              );
+            })}
 
-              {/* Hover panel + connecting line */}
-              {hoveredLocation && panelLayout && (
-                <LocationHoverPanel
-                  location={hoveredLocation}
-                  campaignId={campaignId!}
-                  style={panelLayout.style}
-                  lineX1={panelLayout.lineX1}
-                  lineY1={panelLayout.lineY1}
-                  lineX2={panelLayout.lineX2}
-                  lineY2={panelLayout.lineY2}
-                />
-              )}
-            </div>
+            {/* Hover panel + connecting line */}
+            {hoveredLocation && panelLayout && (
+              <LocationHoverPanel
+                location={hoveredLocation}
+                campaignId={campaignId!}
+                style={panelLayout.style}
+                lineX1={panelLayout.lineX1}
+                lineY1={panelLayout.lineY1}
+                lineX2={panelLayout.lineX2}
+                lineY2={panelLayout.lineY2}
+              />
+            )}
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900/50">
+        <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900/50">
           <div className="max-w-xs text-center">
             <MapPin className="mx-auto mb-3 h-10 w-10 text-slate-600" />
             {isDm ? (
@@ -458,6 +466,22 @@ export default function CampaignMap() {
           </div>
         </div>
       )}
+
+      {/* Remove map confirmation */}
+      <ConfirmModal
+        open={showRemoveConfirm}
+        onClose={() => setShowRemoveConfirm(false)}
+        onConfirm={() => {
+          updateWorldMapMutation.mutate(null);
+          setShowRemoveConfirm(false);
+        }}
+        title="Remove world map"
+        message="Are you sure you want to remove the world map? Location pins will be preserved and can be re-placed after uploading a new map."
+        confirmLabel="Remove map"
+        cancelLabel="Keep map"
+        variant="danger"
+        isLoading={updateWorldMapMutation.isPending}
+      />
     </div>
   );
 }
