@@ -15,6 +15,7 @@ import {
   Spinner,
   TextInput,
 } from '../../components';
+import { EntityAvatar } from '../../components/ui/EntityAvatar';
 
 // Minimal list to support Phase 3 character-sheet uploads. Fuller character
 // management (race, class, appearance, etc.) belongs in the Phase 2 Characters
@@ -135,14 +136,17 @@ export default function CharacterList() {
             >
               <Link
                 to={`/campaigns/${campaignId}/characters/${c.id}`}
-                className="block px-4 py-3"
+                className="flex items-center gap-3 px-4 py-3"
               >
-                <p className="text-sm font-medium text-slate-100">{c.name}</p>
-                {c.player_name && (
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Played by {c.player_name}
-                  </p>
-                )}
+                <EntityAvatar imageUrl={c.portrait_url} entityType="character" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-100">{c.name}</p>
+                  {c.player_name && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Played by {c.player_name}
+                    </p>
+                  )}
+                </div>
               </Link>
             </li>
           ))}

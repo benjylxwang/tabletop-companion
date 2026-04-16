@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
+import { EntityAvatar } from '../../components/ui/EntityAvatar';
 import type { CampaignCreate, CampaignStatusEnum } from '@tabletop/shared';
 
 const STATUS_OPTIONS: { value: CampaignStatusEnum; label: string }[] = [
@@ -206,15 +207,18 @@ export default function CampaignList() {
           <li key={c.id}>
             <Link
               to={`/campaigns/${c.id}`}
-              className="block rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-slate-100">{c.name}</p>
-                <span className="text-xs text-amber-400 uppercase tracking-wide">{c.my_role}</span>
+              <EntityAvatar imageUrl={c.cover_image_url} entityType="campaign" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-100 truncate">{c.name}</p>
+                  <span className="text-xs text-amber-400 uppercase tracking-wide shrink-0">{c.my_role}</span>
+                </div>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  {c.system && `${c.system} · `}{c.status}
+                </p>
               </div>
-              <p className="text-sm text-slate-400 mt-0.5">
-                {c.system && `${c.system} · `}{c.status}
-              </p>
             </Link>
           </li>
         ))}

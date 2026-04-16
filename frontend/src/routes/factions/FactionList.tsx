@@ -12,6 +12,7 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
+import { EntityAvatar } from '../../components/ui/EntityAvatar';
 import type { FactionCreate } from '@tabletop/shared';
 
 function CreateFactionModal({
@@ -190,12 +191,15 @@ export default function FactionList() {
             <li key={f.id}>
               <Link
                 to={`/campaigns/${campaignId}/factions/${f.id}`}
-                className="block h-full rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                className="flex items-center gap-3 h-full rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
-                <p className="font-semibold text-slate-100">{f.name}</p>
-                {f.alignment_tone && (
-                  <p className="text-sm text-slate-400 mt-1">{f.alignment_tone}</p>
-                )}
+                <EntityAvatar entityType="faction" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-100 truncate">{f.name}</p>
+                  {f.alignment_tone && (
+                    <p className="text-sm text-slate-400 mt-0.5 truncate">{f.alignment_tone}</p>
+                  )}
+                </div>
               </Link>
             </li>
           ))}
