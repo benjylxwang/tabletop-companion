@@ -26,3 +26,12 @@ export async function getUserByEmail(email: string): Promise<{ id: string } | nu
     .maybeSingle();
   return data ?? null;
 }
+
+// Invite a new user by email via Supabase Auth. Creates the auth.users row
+// immediately (which triggers handle_new_user → profiles insert) and sends
+// the invitee an email with a sign-up link. Returns the new user's UUID.
+export async function sendSignupInvite(email: string): Promise<{ id: string } | null> {
+  const { data, error } = await supabaseService.auth.admin.inviteUserByEmail(email);
+  if (error || !data.user) return null;
+  return { id: data.user.id };
+}

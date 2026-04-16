@@ -21,7 +21,7 @@ import {
   CampaignOverviewResponse,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
-import { supabaseService, getUserByEmail } from '../lib/supabaseService.js';
+import { supabaseService, getUserByEmail, sendSignupInvite } from '../lib/supabaseService.js';
 import { getCampaignRole } from '../lib/campaignRole.js';
 import { stripDmFields, shouldStripDmFields } from '../lib/stripDmFields.js';
 import {
@@ -300,8 +300,11 @@ campaignsRouter.post('/campaigns/:id/members', async (req, res) => {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
 
-    const found = await getUserByEmail(parsed.data.email);
-    if (!found) throw new NotFoundError('user_not_found');
+    let found = await getUserByEmail(parsed.data.email);
+    if (!found) {
+      found = await sendSignupInvite(parsed.data.email);
+      if (!found) throw new HttpError(500, 'failed to send invitation');
+    }
 
     // Check for existing membership
     const { data: existingMember } = await supabaseService

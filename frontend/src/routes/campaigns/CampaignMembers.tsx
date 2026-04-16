@@ -54,13 +54,11 @@ export default function CampaignMembers() {
     onError: (err: Error) => {
       setInviteSuccess(false);
       setInviteError(
-        err.message === 'user_not_found'
-          ? 'No account found with that email.'
-          : err.message === 'already_member'
-            ? 'This person is already a member.'
-            : err.message === 'already_invited'
-              ? 'An invitation has already been sent to this person.'
-              : 'Failed to send invitation. Please try again.',
+        err.message === 'already_member'
+          ? 'This person is already a member.'
+          : err.message === 'already_invited'
+            ? 'An invitation has already been sent to this person.'
+            : 'Failed to send invitation. Please try again.',
       );
     },
   });
@@ -166,6 +164,9 @@ export default function CampaignMembers() {
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
             Invite Player
           </h2>
+          <p className="text-xs text-slate-500 mb-3">
+            If they don't have an account yet, they'll receive an email to sign up.
+          </p>
           <form onSubmit={handleInvite} className="flex flex-col gap-2 max-w-md">
             <div className="flex gap-2">
               <TextInput
