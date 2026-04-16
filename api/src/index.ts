@@ -6,6 +6,7 @@ import { viewModeMiddleware } from './middleware/viewMode.js';
 import { healthRouter } from './routes/health.js';
 import { configRouter } from './routes/config.js';
 import { campaignsRouter } from './routes/campaigns.js';
+import { npcsRouter } from './routes/npcs.js';
 import { meRouter } from './routes/me.js';
 
 const app = express();
@@ -35,6 +36,7 @@ app.use(configRouter);
 
 app.use('/api', authMiddleware, meRouter);
 app.use('/api', authMiddleware, campaignsRouter);
+app.use('/api', authMiddleware, npcsRouter);
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {

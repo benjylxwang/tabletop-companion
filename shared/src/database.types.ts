@@ -271,7 +271,7 @@ export type Database = {
           appearance: string | null
           personality: string | null
           relationships: string | null
-          status: 'alive' | 'dead' | 'unknown'
+          status: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id: string | null
           faction_id: string | null
           visibility: 'private' | 'public' | 'revealed'
@@ -289,7 +289,7 @@ export type Database = {
           appearance?: string | null
           personality?: string | null
           relationships?: string | null
-          status?: 'alive' | 'dead' | 'unknown'
+          status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
           visibility?: 'private' | 'public' | 'revealed'
@@ -307,7 +307,7 @@ export type Database = {
           appearance?: string | null
           personality?: string | null
           relationships?: string | null
-          status?: 'alive' | 'dead' | 'unknown'
+          status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
           visibility?: 'private' | 'public' | 'revealed'

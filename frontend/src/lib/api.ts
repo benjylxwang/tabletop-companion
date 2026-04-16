@@ -7,6 +7,10 @@ import {
   CampaignsResponse,
   HealthResponse,
   MeResponse,
+  NpcCreate,
+  NpcResponse,
+  NpcUpdate,
+  NpcsResponse,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabase } from './supabase';
@@ -98,4 +102,66 @@ export async function removeCampaignMember(campaignId: string, userId: string): 
     method: 'DELETE',
   });
   if (!res.ok) throw new Error(`remove member ${res.status}`);
+}
+
+// ─── NPCs ────────────────────────────────────────────────────────────────────
+
+export async function fetchNpcs(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<NpcsResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/npcs${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`npcs ${res.status}`);
+  return NpcsResponse.parse(await res.json());
+}
+
+export async function fetchNpc(
+  campaignId: string,
+  npcId: string,
+  viewMode: ViewMode,
+): Promise<NpcResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/npcs/${npcId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`npc ${res.status}`);
+  return NpcResponse.parse(await res.json());
+}
+
+export async function createNpc(
+  campaignId: string,
+  data: NpcCreate,
+): Promise<NpcResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/npcs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create npc ${res.status}`);
+  return NpcResponse.parse(await res.json());
+}
+
+export async function updateNpc(
+  campaignId: string,
+  npcId: string,
+  data: NpcUpdate,
+): Promise<NpcResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/npcs/${npcId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update npc ${res.status}`);
+  return NpcResponse.parse(await res.json());
+}
+
+export async function deleteNpc(
+  campaignId: string,
+  npcId: string,
+): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/npcs/${npcId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete npc ${res.status}`);
 }

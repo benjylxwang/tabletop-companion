@@ -533,6 +533,79 @@ describe('createCrudHandlers — remove', () => {
   });
 });
 
+// ─── null → undefined coercion ────────────────────────────────────────────────
+
+describe('createCrudHandlers — Postgres null handling', () => {
+  // z.string().optional() rejects `null` — but that's what PostgREST returns
+  // for unset nullable columns. The factory must coerce these so every caller
+  // doesn't duplicate the fix.
+  const FooWithOptional = z.object({
+    id: z.string(),
+    campaign_id: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    dm_notes: z.string().optional(),
+  });
+  type FooWithOptional = z.infer<typeof FooWithOptional>;
+  const FooWithOptionalCreate = FooWithOptional.omit({ id: true });
+
+  const ROW_WITH_NULLS = {
+    id: 'r1',
+    campaign_id: CAMPAIGN_ID,
+    name: 'Alice',
+    description: null,
+    dm_notes: null,
+  };
+
+  it('list: coerces nulls in returned rows before Zod parse', async () => {
+    const { client } = buildTableClient({
+      memberRole: 'dm',
+      foo: { selectResult: { data: [ROW_WITH_NULLS], error: null } },
+    });
+    const handlers = createCrudHandlers({
+      table: 'foos',
+      baseSchema: FooWithOptional,
+      createSchema: FooWithOptionalCreate,
+      updateSchema: FooWithOptionalCreate.partial(),
+      responseKey: { single: 'foo', plural: 'foos' },
+      resolveCampaignId: () => CAMPAIGN_ID,
+      supabase: client,
+    });
+
+    const req = makeReq();
+    const res = makeRes();
+    await handlers.list(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(200);
+    const body = res._json.mock.calls[0][0] as { foos: FooWithOptional[] };
+    expect(body.foos[0].description).toBeUndefined();
+  });
+
+  it('get: coerces nulls on single-row read', async () => {
+    const { client } = buildTableClient({
+      memberRole: 'dm',
+      foo: { maybeSingleResult: { data: ROW_WITH_NULLS, error: null } },
+    });
+    const handlers = createCrudHandlers({
+      table: 'foos',
+      baseSchema: FooWithOptional,
+      createSchema: FooWithOptionalCreate,
+      updateSchema: FooWithOptionalCreate.partial(),
+      responseKey: { single: 'foo', plural: 'foos' },
+      resolveCampaignId: () => CAMPAIGN_ID,
+      supabase: client,
+    });
+
+    const req = makeReq({ params: { id: 'r1' } } as Partial<Request>);
+    const res = makeRes();
+    await handlers.get(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(200);
+    const body = res._json.mock.calls[0][0] as { foo: FooWithOptional };
+    expect(body.foo.description).toBeUndefined();
+  });
+});
+
 // ─── response wrapper key ─────────────────────────────────────────────────────
 
 describe('createCrudHandlers — response wrapper keys', () => {
