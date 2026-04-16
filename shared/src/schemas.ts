@@ -295,7 +295,7 @@ export const Lore = z.object({
   campaign_id: z.string(),
   title: z.string(),
   category: LoreCategoryEnum,
-  content: z.string(),
+  content: z.string().optional(),
   visibility: LoreVisibilityEnum,
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
