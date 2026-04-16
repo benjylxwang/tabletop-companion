@@ -233,7 +233,18 @@ export const LocationCreate = Location.omit({
 });
 export type LocationCreate = z.infer<typeof LocationCreate>;
 
-export const LocationUpdate = LocationCreate.partial();
+// Optional fields use `.nullish()` so a client can send `null` to explicitly
+// clear a field (PATCH-style partial updates drop `undefined`, so `null` is
+// the only way to tell the server "set this column to NULL").
+export const LocationUpdate = z.object({
+  name: z.string().optional(),
+  type: z.string().nullish(),
+  description: z.string().nullish(),
+  history: z.string().nullish(),
+  map_image_url: z.string().nullish(),
+  parent_location_id: z.string().nullish(),
+  dm_notes: z.string().nullish(),
+});
 export type LocationUpdate = z.infer<typeof LocationUpdate>;
 
 export const LocationsResponse = z.object({ locations: z.array(Location) });

@@ -78,11 +78,14 @@ export default function LocationDetail() {
     mutationFn: () =>
       updateLocation(campaignId!, locationId!, {
         name,
-        type: type || undefined,
-        description: description || undefined,
-        history: history || undefined,
-        parent_location_id: parentId || undefined,
-        dm_notes: dmNotes || undefined,
+        // Send `null` (not `undefined`) for cleared optional fields so the API
+        // actually clears the column. `undefined` would be dropped by
+        // JSON.stringify and the partial update would silently keep the old value.
+        type: type === '' ? null : type,
+        description: description === '' ? null : description,
+        history: history === '' ? null : history,
+        parent_location_id: parentId === '' ? null : parentId,
+        dm_notes: dmNotes === '' ? null : dmNotes,
       }),
     onSuccess: (updated) => {
       queryClient.setQueryData(['location', campaignId, locationId, viewMode], updated);

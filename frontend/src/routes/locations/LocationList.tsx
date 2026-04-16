@@ -59,6 +59,14 @@ function CreateLocationModal({
     },
   });
 
+  // Parent stays mounted between opens; wipe field state and any prior error
+  // on close so reopening starts clean.
+  function handleClose() {
+    reset();
+    mutation.reset();
+    onClose();
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     mutation.mutate({
@@ -77,7 +85,7 @@ function CreateLocationModal({
   ];
 
   return (
-    <Modal open={open} onClose={onClose} title="New Location" size="lg">
+    <Modal open={open} onClose={handleClose} title="New Location" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField label="Name" htmlFor="loc-name" required>
           <TextInput
@@ -151,7 +159,7 @@ function CreateLocationModal({
         )}
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
           <Button type="submit" isLoading={mutation.isPending}>
