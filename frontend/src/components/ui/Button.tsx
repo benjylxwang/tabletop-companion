@@ -43,7 +43,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type="button"
         disabled={disabled || isLoading}
         className={[
-          'inline-flex items-center justify-center font-medium rounded border',
+          'inline-flex items-center justify-center font-medium rounded-md border',
           'transition-colors duration-150',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
           'disabled:opacity-50 disabled:cursor-not-allowed',
