@@ -224,7 +224,13 @@ export type Location = z.infer<typeof Location>;
 export const LocationPlayer = Location.omit({ dm_notes: true });
 export type LocationPlayer = z.infer<typeof LocationPlayer>;
 
-export const LocationCreate = Location.omit({ id: true, created_at: true });
+// campaign_id is omitted — the URL supplies it, and the server won't trust a
+// client-sent value for placement.
+export const LocationCreate = Location.omit({
+  id: true,
+  created_at: true,
+  campaign_id: true,
+});
 export type LocationCreate = z.infer<typeof LocationCreate>;
 
 export const LocationUpdate = LocationCreate.partial();

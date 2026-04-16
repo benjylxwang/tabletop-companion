@@ -21,6 +21,18 @@ type UntypedSupabase = SupabaseClient;
 
 type Row = Record<string, unknown>;
 
+// Postgres/PostgREST returns `null` for unset nullable columns, but Zod
+// `.optional()` only accepts `undefined`. Coerce top-level nulls so schemas
+// written with `.optional()` validate real rows without every caller having to
+// duplicate this logic.
+function nullToUndefined(row: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    next[k] = v === null ? undefined : v;
+  }
+  return next;
+}
+
 type ResolveCampaignId<TBase extends ZodTypeAny> = (
   req: Request,
   row?: z.infer<TBase>,
@@ -95,7 +107,7 @@ export function createCrudHandlers<
       throw new HttpError(500, 'database error');
     }
     if (!data) throw new NotFoundError();
-    return baseSchema.parse(data) as z.infer<TBase>;
+    return baseSchema.parse(nullToUndefined(data)) as z.infer<TBase>;
   }
 
   async function list(req: Request, res: Response): Promise<void> {
@@ -110,7 +122,9 @@ export function createCrudHandlers<
         .eq('campaign_id', campaignId);
       if (error) throw new HttpError(500, 'database error');
 
-      const rows = (data ?? []).map((r) => baseSchema.parse(r) as z.infer<TBase>);
+      const rows = (data ?? []).map(
+        (r) => baseSchema.parse(nullToUndefined(r as Record<string, unknown>)) as z.infer<TBase>,
+      );
       const payload = shouldStrip(role, req) ? rows.map((r) => stripDmFields(r)) : rows;
       res.status(200).json({ [responseKey.plural]: payload });
     } catch (err) {
@@ -156,7 +170,9 @@ export function createCrudHandlers<
         .single();
       if (error || !data) throw new HttpError(500, 'database error');
 
-      const row = baseSchema.parse(data) as z.infer<TBase>;
+      const row = baseSchema.parse(
+        nullToUndefined(data as Record<string, unknown>),
+      ) as z.infer<TBase>;
       const payload = shouldStrip(role, req) ? stripDmFields(row) : row;
       res.status(201).json({ [responseKey.single]: payload });
     } catch (err) {
@@ -190,7 +206,9 @@ export function createCrudHandlers<
         .single();
       if (error || !data) throw new HttpError(500, 'database error');
 
-      const row = baseSchema.parse(data) as z.infer<TBase>;
+      const row = baseSchema.parse(
+        nullToUndefined(data as Record<string, unknown>),
+      ) as z.infer<TBase>;
       const payload = shouldStrip(role, req) ? stripDmFields(row) : row;
       res.status(200).json({ [responseKey.single]: payload });
     } catch (err) {
