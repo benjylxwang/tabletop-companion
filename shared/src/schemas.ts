@@ -31,7 +31,7 @@ export type LoreVisibilityEnum = z.infer<typeof LoreVisibilityEnum>;
 export const Campaign = z.object({
   id: z.string(),
   name: z.string(),
-  system: z.string(),
+  system: z.string().optional(),
   description: z.string().optional(),
   cover_image_url: z.string().optional(),
   status: CampaignStatusEnum,
@@ -49,7 +49,7 @@ export type CampaignCreate = z.infer<typeof CampaignCreate>;
 export const CampaignUpdate = CampaignCreate.partial();
 export type CampaignUpdate = z.infer<typeof CampaignUpdate>;
 
-export const CampaignWithRole = CampaignPlayer.extend({ my_role: RoleEnum });
+export const CampaignWithRole = Campaign.extend({ my_role: RoleEnum });
 export type CampaignWithRole = z.infer<typeof CampaignWithRole>;
 
 export const CampaignsResponse = z.object({ campaigns: z.array(CampaignWithRole) });
@@ -61,18 +61,17 @@ export type CampaignResponse = z.infer<typeof CampaignResponse>;
 // ─── CampaignMember ──────────────────────────────────────────────────────────
 
 export const CampaignMember = z.object({
-  id: z.string(),
   campaign_id: z.string(),
   user_id: z.string(),
   role: RoleEnum,
-  created_at: z.string().datetime(),
+  joined_at: z.string().datetime(),
 });
 export type CampaignMember = z.infer<typeof CampaignMember>;
 
 export const CampaignMemberPlayer = CampaignMember;
 export type CampaignMemberPlayer = z.infer<typeof CampaignMemberPlayer>;
 
-export const CampaignMemberCreate = CampaignMember.omit({ id: true, created_at: true });
+export const CampaignMemberCreate = CampaignMember.omit({ joined_at: true });
 export type CampaignMemberCreate = z.infer<typeof CampaignMemberCreate>;
 
 export const CampaignMemberUpdate = CampaignMemberCreate.partial();
