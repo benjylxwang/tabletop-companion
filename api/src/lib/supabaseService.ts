@@ -15,19 +15,14 @@ export const supabaseService: SupabaseClient<Database> = createClient<Database>(
   { auth: { persistSession: false, autoRefreshToken: false } },
 );
 
-// Look up a Supabase auth user by email using the Admin REST API.
-// Returns the user's id, or null if no account exists with that email.
+// Look up a user by email via the profiles table (a public mirror of auth.users
+// populated by a trigger on sign-up). The service role bypasses RLS so this
+// returns any registered user's id, or null if no account exists with that email.
 export async function getUserByEmail(email: string): Promise<{ id: string } | null> {
-  const res = await fetch(
-    `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        apikey: SUPABASE_SERVICE_ROLE_KEY!,
-      },
-    },
-  );
-  if (!res.ok) return null;
-  const data = (await res.json()) as { users?: { id: string }[] };
-  return data.users?.[0] ?? null;
+  const { data } = await supabaseService
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+  return data ?? null;
 }
