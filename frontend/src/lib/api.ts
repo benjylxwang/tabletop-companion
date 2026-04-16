@@ -5,6 +5,8 @@ import {
   CampaignMembersResponse,
   CampaignResponse,
   CampaignsResponse,
+  GenerateCampaignResponse,
+  GenerateFieldResponse,
   HealthResponse,
   LocationCreate,
   LocationResponse,
@@ -15,6 +17,10 @@ import {
   SessionUpdate,
   SessionResponse,
   SessionsResponse,
+} from '@tabletop/shared';
+import type {
+  GenerateCampaignRequest,
+  GenerateFieldRequest,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabase } from './supabase';
@@ -209,4 +215,36 @@ export async function deleteSession(campaignId: string, sessionId: string): Prom
     method: 'DELETE',
   });
   if (!res.ok) throw new Error(`delete session ${res.status}`);
+}
+
+// ─── AI ──────────────────────────────────────────────────────────────────────
+
+export async function generateCampaignAi(
+  req: GenerateCampaignRequest,
+): Promise<GenerateCampaignResponse> {
+  const res = await authedFetch('/api/ai/generate-campaign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `generate campaign ${res.status}`);
+  }
+  return GenerateCampaignResponse.parse(await res.json());
+}
+
+export async function generateFieldAi(
+  req: GenerateFieldRequest,
+): Promise<GenerateFieldResponse> {
+  const res = await authedFetch('/api/ai/generate-field', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `generate field ${res.status}`);
+  }
+  return GenerateFieldResponse.parse(await res.json());
 }
