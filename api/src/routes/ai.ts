@@ -711,7 +711,7 @@ async function insertPayload(
 
 // ─── Bulk image generation ───────────────────────────────────────────────────
 
-const IMAGE_STYLE = 'Fantasy tabletop RPG illustration, painterly style, detailed.';
+const IMAGE_STYLE = 'Fantasy tabletop RPG illustration, painterly style, detailed. No text, no writing, no letters, no hands.';
 
 async function generateImagesForCampaign(
   campaignId: string,
@@ -946,13 +946,13 @@ aiRouter.post('/generate-image', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { campaign_id, entity_type, entity_id, prompt_hint } = parsed.data;
+    const { campaign_id, entity_type, entity_id, field_name, prompt_hint } = parsed.data;
 
     const role = await getCampaignRole(userId, campaign_id);
     if (!role) throw new NotFoundError();
     if (role !== 'dm') throw new ForbiddenError();
 
-    const prompt = await buildImagePrompt(entity_type, entity_id, prompt_hint);
+    const prompt = await buildImagePrompt(entity_type, entity_id, field_name, prompt_hint);
 
     const { path, url, expires_at } = await generateImage({ prompt, userId });
 
@@ -965,10 +965,11 @@ aiRouter.post('/generate-image', async (req, res) => {
 async function buildImagePrompt(
   entityType: string,
   entityId: string,
+  fieldName: string,
   hint: string | undefined,
 ): Promise<string> {
   const hintSuffix = hint?.trim() ? ` ${hint.trim()}` : '';
-  const style = 'Fantasy tabletop RPG illustration, painterly style, detailed.';
+  const style = 'Fantasy tabletop RPG illustration, painterly style, detailed. No text, no writing, no letters, no hands.';
 
   if (entityType === 'campaign') {
     const { data } = await supabaseService
@@ -978,6 +979,9 @@ async function buildImagePrompt(
       .maybeSingle();
     if (!data) throw new NotFoundError();
     const desc = data.description ? ` ${data.description}` : '';
+    if (fieldName === 'world_map_url') {
+      return `Fantasy tabletop RPG world map, top-down cartographic view, painterly style, detailed regions, illustrated parchment style. No text, no writing, no letters, no hands. Campaign "${data.name}"${data.system ? ` (${data.system})` : ''}.${desc}${hintSuffix}`;
+    }
     return `${style} Campaign cover art for "${data.name}"${data.system ? ` (${data.system})` : ''}.${desc}${hintSuffix}`;
   }
 
