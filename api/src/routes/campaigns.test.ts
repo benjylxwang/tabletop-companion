@@ -5,9 +5,11 @@ import type { User } from '@supabase/supabase-js';
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockFrom = vi.fn();
+const mockGetUserByEmail = vi.fn();
 
 vi.mock('../lib/supabaseService.js', () => ({
   supabaseService: { from: (...args: unknown[]) => mockFrom(...args) },
+  getUserByEmail: (...args: unknown[]) => mockGetUserByEmail(...args),
 }));
 
 const mockGetCampaignRole = vi.fn();
@@ -393,6 +395,186 @@ describe('DELETE /campaigns/:id', () => {
     mockFrom.mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null }));
 
     const req = makeReq({ params: { id: 'camp-1' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(404);
+  });
+});
+
+// ─── Member management tests ──────────────────────────────────────────────────
+
+const FAKE_MEMBER = {
+  campaign_id: 'camp-1',
+  user_id: 'user-1',
+  role: 'dm',
+  joined_at: '2026-01-01T00:00:00.000Z',
+};
+
+describe('GET /campaigns/:id/members', () => {
+  const handler = getHandler('get', '/campaigns/:id/members');
+
+  beforeEach(() => {
+    mockFrom.mockReset();
+    mockGetCampaignRole.mockReset();
+    mockGetUserByEmail.mockReset();
+  });
+
+  it('returns member list for a member', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockFrom.mockReturnValue(makeChain({ data: [FAKE_MEMBER], error: null }));
+
+    const req = makeReq({ params: { id: 'camp-1' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._json).toHaveBeenCalledOnce();
+    const body = (res._json as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(body.members).toHaveLength(1);
+    expect(body.members[0].role).toBe('dm');
+  });
+
+  it('returns 404 for non-member', async () => {
+    mockGetCampaignRole.mockResolvedValue(null);
+
+    const req = makeReq({ params: { id: 'camp-1' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(404);
+  });
+});
+
+describe('POST /campaigns/:id/members', () => {
+  const handler = getHandler('post', '/campaigns/:id/members');
+
+  beforeEach(() => {
+    mockFrom.mockReset();
+    mockGetCampaignRole.mockReset();
+    mockGetUserByEmail.mockReset();
+  });
+
+  it('adds a player member by email', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockGetUserByEmail.mockResolvedValue({ id: 'user-2' });
+    mockFrom
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null })) // check existing
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { // insert
+        data: { campaign_id: 'camp-1', user_id: 'user-2', role: 'player', joined_at: '2026-01-01T00:00:00.000Z' },
+        error: null,
+      }));
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'player@test.com' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(201);
+  });
+
+  it('returns 403 for non-DM caller', async () => {
+    mockGetCampaignRole.mockResolvedValue('player');
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'x@x.com' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(403);
+  });
+
+  it('returns 404 for non-member caller', async () => {
+    mockGetCampaignRole.mockResolvedValue(null);
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'x@x.com' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(404);
+  });
+
+  it('returns 404 when email does not match any user', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockGetUserByEmail.mockResolvedValue(null);
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'unknown@test.com' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(404);
+  });
+
+  it('returns 409 when user is already a member', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockGetUserByEmail.mockResolvedValue({ id: 'user-2' });
+    mockFrom.mockReturnValueOnce(
+      makeChain({ data: null, error: null }, { data: { user_id: 'user-2' }, error: null }), // existing member found
+    );
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'already@test.com' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(409);
+  });
+
+  it('returns 400 for invalid email', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'not-an-email' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(400);
+  });
+});
+
+describe('DELETE /campaigns/:id/members/:userId', () => {
+  const handler = getHandler('delete', '/campaigns/:id/members/:userId');
+
+  beforeEach(() => {
+    mockFrom.mockReset();
+    mockGetCampaignRole.mockReset();
+    mockGetUserByEmail.mockReset();
+  });
+
+  it('removes a member and returns 204', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockFrom
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: { user_id: 'user-2' }, error: null })) // target check
+      .mockReturnValueOnce(makeChain({ data: null, error: null })); // delete
+
+    const req = makeReq({ params: { id: 'camp-1', userId: 'user-2' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(204);
+  });
+
+  it('returns 403 for non-DM caller', async () => {
+    mockGetCampaignRole.mockResolvedValue('player');
+
+    const req = makeReq({ params: { id: 'camp-1', userId: 'user-2' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(403);
+  });
+
+  it('returns 400 when trying to remove self', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+
+    // FAKE_USER.id === 'user-1'; removing self
+    const req = makeReq({ params: { id: 'camp-1', userId: 'user-1' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 404 if target is not a member', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockFrom.mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null }));
+
+    const req = makeReq({ params: { id: 'camp-1', userId: 'user-99' } });
     const res = makeRes();
     await handler(req, res);
 
