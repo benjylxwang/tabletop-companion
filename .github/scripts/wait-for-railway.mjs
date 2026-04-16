@@ -52,7 +52,7 @@ async function gql(query, variables = {}) {
 // narrow scopes reject those. Explicit is simpler and works for every token
 // type.
 
-async function getServices(projectId) {
+async function getProject(projectId) {
   const data = await gql(
     `
     query($id: String!) {
@@ -68,12 +68,30 @@ async function getServices(projectId) {
             }
           }
         }
+        environments {
+          edges { node { id name } }
+        }
       }
     }
   `,
     { id: projectId },
   );
-  return data.project.services.edges.map((e) => e.node);
+  return {
+    services: data.project.services.edges.map((e) => e.node),
+    environments: data.project.environments.edges.map((e) => e.node),
+  };
+}
+
+// The "main" environment is the one deploys land on for pushes to main.
+// Railway's convention is a single environment named "production"; we match it
+// case-insensitively and fall back to the first environment if none is named.
+function pickProductionEnvironmentId(environments) {
+  const byName = environments.find((e) => e.name.toLowerCase() === 'production');
+  if (byName) return byName.id;
+  if (environments.length === 1) return environments[0].id;
+  throw new Error(
+    `Cannot identify production environment; got: ${environments.map((e) => e.name).join(', ')}`,
+  );
 }
 
 async function latestDeployment(projectId, serviceId) {
@@ -88,6 +106,7 @@ async function latestDeployment(projectId, serviceId) {
             staticUrl
             url
             meta
+            environmentId
           }
         }
       }
@@ -126,7 +145,8 @@ async function main() {
   const deadline = Date.now() + TIMEOUT_MS;
 
   while (Date.now() < deadline) {
-    const services = await getServices(projectId);
+    const { services, environments } = await getProject(projectId);
+    const productionEnvironmentId = pickProductionEnvironmentId(environments);
     const fe = services.find((s) => s.name.toLowerCase() === 'frontend');
     const api = services.find((s) => s.name.toLowerCase() === 'api');
     if (!fe || !api) {
@@ -144,15 +164,21 @@ async function main() {
     // deployment exists but is still BUILDING/DEPLOYING, keep polling —
     // falling back to a stale prod deployment in that window was the bug
     // that let PR #46 test against prod while its preview was still building.
+    //
     // Only fall back to "most recent SUCCESS" when Railway has SKIPPED this
-    // SHA entirely (watched paths unchanged), which is the case a stale
-    // deployment is legitimately the live one.
+    // SHA entirely (watched paths unchanged) — and in that case the fallback
+    // MUST be constrained to the production environment. An unconstrained
+    // fallback happily picks another PR's preview (whose app shell is
+    // unrelated to this PR's tests), which is how #50's run against #49's
+    // frontend red-lit CI.
     const pickReady = (deploys) => {
       const shaMatched = deploys.find(matches);
       if (shaMatched) {
         return shaMatched.status === 'SUCCESS' ? shaMatched : null;
       }
-      return deploys.find((d) => d.status === 'SUCCESS');
+      return deploys.find(
+        (d) => d.status === 'SUCCESS' && d.environmentId === productionEnvironmentId,
+      );
     };
 
     const feMatch = pickReady(feDeploys);

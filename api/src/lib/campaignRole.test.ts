@@ -51,9 +51,9 @@ describe('getCampaignRole', () => {
     expect(await getCampaignRole('u1', 'c1', client)).toBe(null);
   });
 
-  it('returns null and logs when Supabase returns an error', async () => {
+  it('throws HttpError(500) and logs when Supabase returns an error', async () => {
     const { client } = makeClient({ data: null, error: { message: 'db down' } });
-    expect(await getCampaignRole('u1', 'c1', client)).toBe(null);
+    await expect(getCampaignRole('u1', 'c1', client)).rejects.toThrow(/database error/);
     expect(consoleSpy).toHaveBeenCalled();
   });
 });

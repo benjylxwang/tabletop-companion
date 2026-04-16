@@ -27,7 +27,7 @@ function walk(value: unknown): unknown {
   let changed = false;
   const next: Record<string, unknown> = {};
   for (const key of Object.keys(src)) {
-    if (key.startsWith(DM_PREFIX) && key.length > DM_PREFIX.length) {
+    if (key.startsWith(DM_PREFIX)) {
       changed = true;
       continue;
     }

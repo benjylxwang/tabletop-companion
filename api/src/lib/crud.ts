@@ -144,9 +144,14 @@ export function createCrudHandlers<
       const role = await requireRole(userId, campaignId);
       if (role !== 'dm') throw new ForbiddenError();
 
+      // Bind the row to the authorized campaign. Never trust a client-supplied
+      // campaign_id on the insert — the authorized campaignId (from URL, etc.)
+      // is the only source of truth for placement.
+      const insertRow = { ...(parsed.data as Row), campaign_id: campaignId };
+
       const { data, error } = await client
         .from(table)
-        .insert(parsed.data as Row)
+        .insert(insertRow)
         .select('*')
         .single();
       if (error || !data) throw new HttpError(500, 'database error');
@@ -172,9 +177,14 @@ export function createCrudHandlers<
       const role = await requireRole(userId, campaignId);
       if (role !== 'dm') throw new ForbiddenError();
 
+      // Never allow a row to be moved across campaigns via PATCH — that would
+      // let a DM on campaign A push rows into campaign B. Strip campaign_id
+      // unconditionally; it's pinned at create time.
+      const { campaign_id: _ignored, ...updatePayload } = parsed.data as Row;
+
       const { data, error } = await client
         .from(table)
-        .update(parsed.data as Row)
+        .update(updatePayload)
         .eq('id', req.params.id)
         .select('*')
         .single();

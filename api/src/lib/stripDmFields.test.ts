@@ -16,12 +16,12 @@ describe('stripDmFields', () => {
     expect(stripDmFields(input)).toEqual({ rows: [{ id: '1' }, { id: '2' }] });
   });
 
-  it('leaves the exact key "dm" alone (only dm_<x> is stripped)', () => {
+  it('leaves the exact key "dm" alone (only dm_-prefixed keys are stripped)', () => {
     expect(stripDmFields({ dm: 'keep' })).toEqual({ dm: 'keep' });
   });
 
-  it('leaves the bare "dm_" key alone (no trailing character)', () => {
-    expect(stripDmFields({ dm_: 'keep' })).toEqual({ dm_: 'keep' });
+  it('strips even the bare "dm_" key — any dm_ prefix is treated as private', () => {
+    expect(stripDmFields({ dm_: 'secret', keep: 'ok' })).toEqual({ keep: 'ok' });
   });
 
   it('leaves values that happen to contain "dm_" untouched', () => {

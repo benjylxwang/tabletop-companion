@@ -363,6 +363,33 @@ describe('createCrudHandlers — create', () => {
     expect(res._status).toHaveBeenCalledWith(403);
     expect(res._json).toHaveBeenCalledWith({ error: 'forbidden' });
   });
+
+  it('forces the authorized campaign_id onto the insert, ignoring any client-supplied value', async () => {
+    const authorizedCampaignId = 'c-authorized';
+    const { client, fooChain } = buildTableClient({
+      memberRole: 'dm',
+      foo: {
+        insertSingleResult: {
+          data: { ...ROW_DM, campaign_id: authorizedCampaignId },
+          error: null,
+        },
+      },
+    });
+    const handlers = makeHandlers(client, {
+      // Simulate an URL-param flow where the authorized campaign is c-authorized,
+      // but the body tries to smuggle c-attacker.
+      resolveCampaignId: () => authorizedCampaignId,
+    });
+    const req = makeReq({
+      body: { campaign_id: 'c-attacker', name: 'Alice' },
+    } as Partial<Request>);
+    const res = makeRes();
+    await handlers.create(req, res);
+    expect(res._status).toHaveBeenCalledWith(201);
+    expect(fooChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ campaign_id: authorizedCampaignId, name: 'Alice' }),
+    );
+  });
 });
 
 // ─── update ───────────────────────────────────────────────────────────────────
@@ -430,6 +457,27 @@ describe('createCrudHandlers — update', () => {
     const res = makeRes();
     await handlers.update(req, res);
     expect(res._status).toHaveBeenCalledWith(404);
+  });
+
+  it('strips campaign_id from the update payload so rows cannot be moved between campaigns', async () => {
+    const { client, fooChain } = buildTableClient({
+      memberRole: 'dm',
+      foo: {
+        maybeSingleResult: { data: ROW_DM, error: null },
+        updateSingleResult: { data: ROW_DM, error: null },
+      },
+    });
+    const handlers = makeHandlers(client);
+    const req = makeReq({
+      params: { id: 'r1' },
+      body: { campaign_id: 'c-attacker', name: 'renamed' },
+    } as Partial<Request>);
+    const res = makeRes();
+    await handlers.update(req, res);
+    expect(res._status).toHaveBeenCalledWith(200);
+    const updateArg = fooChain.update.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(updateArg).toEqual({ name: 'renamed' });
+    expect(updateArg).not.toHaveProperty('campaign_id');
   });
 });
 
