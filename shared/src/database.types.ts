@@ -154,6 +154,7 @@ export type Database = {
           personality: string | null
           goals_bonds: string | null
           character_sheet_url: string | null
+          portrait_url: string | null
           journal: string | null
           visibility: 'private' | 'public' | 'revealed'
           revealed_to: string[] | null
@@ -174,6 +175,7 @@ export type Database = {
           personality?: string | null
           goals_bonds?: string | null
           character_sheet_url?: string | null
+          portrait_url?: string | null
           journal?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
@@ -194,6 +196,7 @@ export type Database = {
           personality?: string | null
           goals_bonds?: string | null
           character_sheet_url?: string | null
+          portrait_url?: string | null
           journal?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
@@ -274,6 +277,7 @@ export type Database = {
           status: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id: string | null
           faction_id: string | null
+          portrait_url: string | null
           visibility: 'private' | 'public' | 'revealed'
           revealed_to: string[] | null
           dm_notes: string | null
@@ -292,6 +296,7 @@ export type Database = {
           status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
+          portrait_url?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null
@@ -310,6 +315,7 @@ export type Database = {
           status?: 'Alive' | 'Dead' | 'Unknown'
           first_appeared_session_id?: string | null
           faction_id?: string | null
+          portrait_url?: string | null
           visibility?: 'private' | 'public' | 'revealed'
           revealed_to?: string[] | null
           dm_notes?: string | null

@@ -405,6 +405,7 @@ export const GenerateCampaignRequest = z
     campaign_id: z.string().optional(),
     seed: z.string().max(500).optional(),
     provider: AIProvider.optional(),
+    generate_images: z.boolean().optional(),
   })
   .refine((v) => v.mode === 'new' || !!v.campaign_id, {
     message: 'campaign_id is required when mode is "populate"',

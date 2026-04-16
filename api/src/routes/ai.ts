@@ -250,7 +250,7 @@ aiRouter.post('/generate-campaign', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { mode, campaign_id, seed, provider } = parsed.data;
+    const { mode, campaign_id, seed, provider, generate_images } = parsed.data;
 
     // DM check for populate. New-campaign mode makes the caller the DM.
     if (mode === 'populate') {
@@ -272,7 +272,16 @@ aiRouter.post('/generate-campaign', async (req, res) => {
       mode === 'populate' ? campaign_id! : await createCampaignForUser(payload, userId);
 
     try {
-      const counts = await insertPayload(targetCampaignId, payload, mode);
+      const { counts, npcIds, characterIds, locationIds } = await insertPayload(
+        targetCampaignId,
+        payload,
+        mode,
+      );
+
+      if (generate_images) {
+        await generateImagesForCampaign(targetCampaignId, payload, { npcIds, characterIds, locationIds }, userId);
+      }
+
       res.status(201).json(
         GenerateCampaignResponse.parse({ campaign_id: targetCampaignId, counts }),
       );
@@ -329,11 +338,18 @@ async function createCampaignForUser(
   return campaign.id as string;
 }
 
+interface InsertPayloadResult {
+  counts: GenerateCampaignCounts;
+  npcIds: string[];
+  characterIds: string[];
+  locationIds: string[];
+}
+
 async function insertPayload(
   campaignId: string,
   payload: CampaignPayload,
   mode: 'new' | 'populate',
-): Promise<GenerateCampaignCounts> {
+): Promise<InsertPayloadResult> {
   // On populate mode, apply any non-empty campaign-level fields from the model
   // (except the name — don't rename a campaign the user already picked).
   if (mode === 'populate') {
@@ -387,7 +403,7 @@ async function insertPayload(
   );
 
   // 3. Locations — two-pass to resolve parent_ref (self-reference).
-  const locationIds = await insertBatch(
+  const locationIdMap = await insertBatch(
     'locations',
     payload.locations.map((l) => ({
       campaign_id: campaignId,
@@ -401,8 +417,8 @@ async function insertPayload(
   );
   for (const loc of payload.locations) {
     if (!loc.parent_ref) continue;
-    const childId = locationIds[loc.ref];
-    const parentId = locationIds[loc.parent_ref];
+    const childId = locationIdMap[loc.ref];
+    const parentId = locationIdMap[loc.parent_ref];
     if (!childId || !parentId) continue;
     const { error } = await supabaseService
       .from('locations')
@@ -415,7 +431,8 @@ async function insertPayload(
   }
 
   // 4. NPCs — depend on factions + sessions.
-  await insertBatch(
+  const npcRefs = payload.npcs.map((_, i) => `npc-${i}`);
+  const npcIdMap = await insertBatch(
     'npcs',
     payload.npcs.map((n) => ({
       campaign_id: campaignId,
@@ -432,10 +449,13 @@ async function insertPayload(
         : null,
       dm_notes: n.dm_notes ?? null,
     })),
+    npcRefs,
   );
+  const npcIds = npcRefs.map((r) => npcIdMap[r]).filter((id): id is string => !!id);
 
   // 5. Characters — independent of the rest.
-  await insertBatch(
+  const charRefs = payload.characters.map((_, i) => `char-${i}`);
+  const charIdMap = await insertBatch(
     'characters',
     payload.characters.map((c) => ({
       campaign_id: campaignId,
@@ -450,7 +470,9 @@ async function insertPayload(
       goals_bonds: c.goals_bonds ?? null,
       dm_notes: c.dm_notes ?? null,
     })),
+    charRefs,
   );
+  const characterIds = charRefs.map((r) => charIdMap[r]).filter((id): id is string => !!id);
 
   // 6. Lore — independent of the rest.
   await insertBatch(
@@ -465,14 +487,124 @@ async function insertPayload(
     })),
   );
 
+  const locIds = payload.locations.map((l) => locationIdMap[l.ref]).filter((id): id is string => !!id);
+
   return {
-    factions: payload.factions.length,
-    sessions: payload.sessions.length,
-    locations: payload.locations.length,
-    npcs: payload.npcs.length,
-    characters: payload.characters.length,
-    lore: payload.lore.length,
+    counts: {
+      factions: payload.factions.length,
+      sessions: payload.sessions.length,
+      locations: payload.locations.length,
+      npcs: payload.npcs.length,
+      characters: payload.characters.length,
+      lore: payload.lore.length,
+    },
+    npcIds,
+    characterIds,
+    locationIds: locIds,
   };
+}
+
+// ─── Bulk image generation ───────────────────────────────────────────────────
+
+const IMAGE_STYLE = 'Fantasy tabletop RPG illustration, painterly style, detailed.';
+
+async function generateImagesForCampaign(
+  campaignId: string,
+  payload: CampaignPayload,
+  ids: { npcIds: string[]; characterIds: string[]; locationIds: string[] },
+  userId: string,
+): Promise<void> {
+  interface ImageTask {
+    prompt: string;
+    table: 'campaigns' | 'npcs' | 'characters' | 'locations';
+    column: string;
+    id: string;
+  }
+
+  const tasks: ImageTask[] = [];
+
+  // Campaign cover
+  const campaignDesc = payload.campaign.description ? ` ${payload.campaign.description}` : '';
+  const systemStr = payload.campaign.system ? ` (${payload.campaign.system})` : '';
+  tasks.push({
+    prompt: `${IMAGE_STYLE} Campaign cover art for "${payload.campaign.name}"${systemStr}.${campaignDesc}`,
+    table: 'campaigns',
+    column: 'cover_image_url',
+    id: campaignId,
+  });
+
+  // NPC portraits
+  for (let i = 0; i < ids.npcIds.length; i++) {
+    const n = payload.npcs[i];
+    if (!n) continue;
+    const role = n.role_title ? `, ${n.role_title}` : '';
+    const appearance = n.appearance ? ` ${n.appearance}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Character portrait of ${n.name}${role}.${appearance}`,
+      table: 'npcs',
+      column: 'portrait_url',
+      id: ids.npcIds[i],
+    });
+  }
+
+  // Character portraits
+  for (let i = 0; i < ids.characterIds.length; i++) {
+    const c = payload.characters[i];
+    if (!c) continue;
+    const race = c.race_species ? ` ${c.race_species}` : '';
+    const cls = c.class ? ` ${c.class}` : '';
+    const appearance = c.appearance ? ` ${c.appearance}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE} Character portrait of ${c.name},${race}${cls}.${appearance}`,
+      table: 'characters',
+      column: 'portrait_url',
+      id: ids.characterIds[i],
+    });
+  }
+
+  // Location art
+  for (let i = 0; i < ids.locationIds.length; i++) {
+    const l = payload.locations[i];
+    if (!l) continue;
+    const typeLabel = l.type ? ` ${l.type}` : '';
+    const desc = l.description ? ` ${l.description}` : '';
+    tasks.push({
+      prompt: `${IMAGE_STYLE}${typeLabel ? ` A${typeLabel}` : ''} named "${l.name}".${desc}`,
+      table: 'locations',
+      column: 'map_image_url',
+      id: ids.locationIds[i],
+    });
+  }
+
+  console.log(`[generateImagesForCampaign] generating ${tasks.length} images`);
+
+  const results = await Promise.allSettled(
+    tasks.map((task) => generateImage({ prompt: task.prompt, userId })),
+  );
+
+  await Promise.allSettled(
+    results.map(async (result, i) => {
+      const task = tasks[i];
+      if (result.status === 'rejected') {
+        console.error(`[generateImagesForCampaign] image failed for ${task.table}/${task.id}:`, result.reason);
+        return;
+      }
+      const path = result.value.path;
+      let error: { message: string } | null = null;
+      if (task.table === 'campaigns') {
+        ({ error } = await supabaseService.from('campaigns').update({ cover_image_url: path }).eq('id', task.id));
+      } else if (task.table === 'npcs') {
+        ({ error } = await supabaseService.from('npcs').update({ portrait_url: path }).eq('id', task.id));
+      } else if (task.table === 'characters') {
+        ({ error } = await supabaseService.from('characters').update({ portrait_url: path }).eq('id', task.id));
+      } else if (task.table === 'locations') {
+        ({ error } = await supabaseService.from('locations').update({ map_image_url: path }).eq('id', task.id));
+      }
+      if (error) {
+        console.error(`[generateImagesForCampaign] DB update failed for ${task.table}/${task.id}:`, error);
+      }
+    }),
+  );
 }
 
 // Inserts `rows` and, if `refs` is provided, returns a map of ref → inserted id.
