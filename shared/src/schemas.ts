@@ -181,7 +181,7 @@ export const Npc = z.object({
   alignment: z.string().optional(),
   appearance: z.string().optional(),
   personality: z.string().optional(),
-  relationships: z.array(z.string()).optional(),
+  relationships: z.string().optional(),
   status: NpcStatusEnum,
   first_appeared_session_id: z.string().optional(),
   faction_id: z.string().optional(),
@@ -193,7 +193,13 @@ export type Npc = z.infer<typeof Npc>;
 export const NpcPlayer = Npc.omit({ dm_notes: true });
 export type NpcPlayer = z.infer<typeof NpcPlayer>;
 
-export const NpcCreate = Npc.omit({ id: true, created_at: true });
+// campaign_id is omitted — the URL supplies it, and the server won't trust a
+// client-sent value for placement.
+export const NpcCreate = Npc.omit({
+  id: true,
+  created_at: true,
+  campaign_id: true,
+});
 export type NpcCreate = z.infer<typeof NpcCreate>;
 
 export const NpcUpdate = NpcCreate.partial();
