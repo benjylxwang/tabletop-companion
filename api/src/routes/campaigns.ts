@@ -446,6 +446,75 @@ campaignsRouter.get('/campaigns/:id/overview', async (req, res) => {
 
     const strip = shouldStripDmFields(req.requestedView) || role === 'player';
 
+    // Build queries — private rows are excluded from player view at the query level
+    // to prevent count and content leaking. Non-lore tables use lowercase visibility values.
+    // Lore uses Title Case (fixed by 20260416200000_fix_lore_case migration).
+    const visEq = 'public' as never;
+    const loreVisEq = 'Public' as never;
+
+    const sessionsDataQuery = supabaseService
+      .from('sessions')
+      .select('*')
+      .eq('campaign_id', id)
+      .order('session_number', { ascending: false })
+      .limit(5);
+    const charactersDataQuery = supabaseService
+      .from('characters')
+      .select('*')
+      .eq('campaign_id', id);
+    const npcsDataQuery = supabaseService
+      .from('npcs')
+      .select('*')
+      .eq('campaign_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    const locationsDataQuery = supabaseService
+      .from('locations')
+      .select('*')
+      .eq('campaign_id', id);
+    const factionsDataQuery = supabaseService
+      .from('factions')
+      .select('*')
+      .eq('campaign_id', id);
+    const sessionCountQuery = supabaseService
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+    const characterCountQuery = supabaseService
+      .from('characters')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+    const npcCountQuery = supabaseService
+      .from('npcs')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+    const locationCountQuery = supabaseService
+      .from('locations')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+    const factionCountQuery = supabaseService
+      .from('factions')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+    const loreCountQuery = supabaseService
+      .from('lore')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+
+    if (strip) {
+      sessionsDataQuery.eq('visibility', visEq);
+      charactersDataQuery.eq('visibility', visEq);
+      npcsDataQuery.eq('visibility', visEq);
+      locationsDataQuery.eq('visibility', visEq);
+      factionsDataQuery.eq('visibility', visEq);
+      sessionCountQuery.eq('visibility', visEq);
+      characterCountQuery.eq('visibility', visEq);
+      npcCountQuery.eq('visibility', visEq);
+      locationCountQuery.eq('visibility', visEq);
+      factionCountQuery.eq('visibility', visEq);
+      loreCountQuery.eq('visibility', loreVisEq);
+    }
+
     // Fetch all data and stat counts in parallel
     const [
       sessionsResult,
@@ -460,54 +529,17 @@ campaignsRouter.get('/campaigns/:id/overview', async (req, res) => {
       factionCountResult,
       loreCountResult,
     ] = await Promise.all([
-      supabaseService
-        .from('sessions')
-        .select('*')
-        .eq('campaign_id', id)
-        .order('session_number', { ascending: false })
-        .limit(5),
-      supabaseService
-        .from('characters')
-        .select('*')
-        .eq('campaign_id', id),
-      supabaseService
-        .from('npcs')
-        .select('*')
-        .eq('campaign_id', id)
-        .order('created_at', { ascending: false })
-        .limit(10),
-      supabaseService
-        .from('locations')
-        .select('*')
-        .eq('campaign_id', id),
-      supabaseService
-        .from('factions')
-        .select('*')
-        .eq('campaign_id', id),
-      supabaseService
-        .from('sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id),
-      supabaseService
-        .from('characters')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id),
-      supabaseService
-        .from('npcs')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id),
-      supabaseService
-        .from('locations')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id),
-      supabaseService
-        .from('factions')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id),
-      supabaseService
-        .from('lore')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id),
+      sessionsDataQuery,
+      charactersDataQuery,
+      npcsDataQuery,
+      locationsDataQuery,
+      factionsDataQuery,
+      sessionCountQuery,
+      characterCountQuery,
+      npcCountQuery,
+      locationCountQuery,
+      factionCountQuery,
+      loreCountQuery,
     ]);
 
     if (sessionsResult.error) throw new HttpError(500, 'database error');
