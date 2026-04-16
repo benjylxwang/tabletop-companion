@@ -26,7 +26,7 @@ function imageModel(): string {
 }
 
 function largeImageModel(): string {
-  return process.env.DEEPINFRA_LARGE_IMAGE_MODEL ?? 'black-forest-labs/FLUX-1-dev';
+  return process.env.DEEPINFRA_LARGE_IMAGE_MODEL ?? 'black-forest-labs/FLUX-1-schnell';
 }
 
 export async function generateJson<T>({

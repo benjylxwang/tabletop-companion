@@ -20,7 +20,7 @@ import {
   ForbiddenError,
   sendError,
 } from '../lib/httpErrors.js';
-import { generateJson, generateText, generateImage, type GenerateJsonTool } from '../lib/aiProvider.js';
+import { generateJson, generateText, generateImage, generateImageLargeFormat, type GenerateJsonTool } from '../lib/aiProvider.js';
 
 export const aiRouter = Router();
 
@@ -1015,7 +1015,9 @@ aiRouter.post('/generate-image', async (req, res) => {
 
     const prompt = await buildImagePrompt(entity_type, entity_id, field_name, prompt_hint);
 
-    const { path, url, expires_at } = await generateImage({ prompt, userId });
+    const { path, url, expires_at } = field_name === 'world_map_url'
+      ? await generateImageLargeFormat({ prompt, userId, width: 1920, height: 960 })
+      : await generateImage({ prompt, userId });
 
     res.status(201).json(GenerateImageResponse.parse({ path, url, expires_at }));
   } catch (err) {
