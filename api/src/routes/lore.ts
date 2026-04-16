@@ -79,14 +79,13 @@ loreRouter.post('/campaigns/:campaignId/lore', async (req, res) => {
     if (!role) throw new NotFoundError();
     if (role !== 'dm') throw new ForbiddenError();
 
-    const parsed = LoreCreate.safeParse(req.body);
+    // Inject campaign_id from URL — never trust a client-supplied campaign_id.
+    const parsed = LoreCreate.safeParse({ ...req.body, campaign_id: campaignId });
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
 
-    // Bind to the authorized campaign — never trust a client-supplied campaign_id.
-    const { campaign_id: _ignored, ...rest } = parsed.data;
-    const insertRow = { ...rest, campaign_id: campaignId };
+    const insertRow = parsed.data;
 
     // Cast to bypass Supabase generated types (Title Case vs lowercase — see above).
     const { data, error } = await supabaseService

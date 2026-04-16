@@ -5,6 +5,10 @@ import {
   CampaignMembersResponse,
   CampaignResponse,
   CampaignsResponse,
+  FactionCreate,
+  FactionUpdate,
+  FactionResponse,
+  FactionsResponse,
   HealthResponse,
   MeResponse,
 } from '@tabletop/shared';
@@ -98,4 +102,45 @@ export async function removeCampaignMember(campaignId: string, userId: string): 
     method: 'DELETE',
   });
   if (!res.ok) throw new Error(`remove member ${res.status}`);
+}
+
+// ─── Factions ────────────────────────────────────────────────────────────────
+
+export async function fetchFactions(campaignId: string, viewMode: ViewMode): Promise<FactionsResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions${viewQuery(viewMode)}`);
+  if (!res.ok) throw new Error(`factions ${res.status}`);
+  return FactionsResponse.parse(await res.json());
+}
+
+export async function fetchFaction(campaignId: string, factionId: string, viewMode: ViewMode): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}${viewQuery(viewMode)}`);
+  if (!res.ok) throw new Error(`faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function createFaction(campaignId: string, data: FactionCreate): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function updateFaction(campaignId: string, factionId: string, data: FactionUpdate): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function deleteFaction(campaignId: string, factionId: string): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete faction ${res.status}`);
 }
