@@ -51,6 +51,7 @@ app.use('/api', authMiddleware, sessionsRouter);
 app.use('/api/ai', authMiddleware, aiRouter);
 
 const port = Number(process.env.PORT) || 3000;
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`api listening on :${port}`);
 });
+server.keepAliveTimeout = 65_000;
