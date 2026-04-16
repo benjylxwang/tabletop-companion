@@ -13,6 +13,7 @@ import { locationsRouter } from './routes/locations.js';
 import { loreRouter } from './routes/lore.js';
 import { npcsRouter } from './routes/npcs.js';
 import { sessionsRouter } from './routes/sessions.js';
+import { factionsRouter } from './routes/factions.js';
 import { meRouter } from './routes/me.js';
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api', authMiddleware, locationsRouter);
 app.use('/api', authMiddleware, loreRouter);
 app.use('/api', authMiddleware, npcsRouter);
 app.use('/api', authMiddleware, sessionsRouter);
+app.use('/api', authMiddleware, factionsRouter);
 app.use('/api/ai', authMiddleware, aiRouter);
 
 const port = Number(process.env.PORT) || 3000;

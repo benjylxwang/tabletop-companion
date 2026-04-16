@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCampaign,
+  fetchCampaignOverview,
   updateCampaign,
   deleteCampaign,
   fetchCampaignMembers,
@@ -22,13 +23,149 @@ import {
   ErrorDisplay,
   EmptyState,
 } from '../../components';
-import type { CampaignStatusEnum } from '@tabletop/shared';
+import type { CampaignStatusEnum, CampaignOverview } from '@tabletop/shared';
 
 const STATUS_OPTIONS: { value: CampaignStatusEnum; label: string }[] = [
   { value: 'Active', label: 'Active' },
   { value: 'Hiatus', label: 'Hiatus' },
   { value: 'Complete', label: 'Complete' },
 ];
+
+// ─── Campaign overview section ────────────────────────────────────────────────
+
+function StatCard({ count, label }: { count: number; label: string }) {
+  return (
+    <div className="text-center rounded-lg border border-slate-700 bg-slate-900 p-4">
+      <p className="text-2xl font-bold text-amber-400">{count}</p>
+      <p className="text-xs text-slate-400 mt-1 uppercase tracking-wide">{label}</p>
+    </div>
+  );
+}
+
+function OverviewSection({
+  campaignId,
+  overview,
+}: {
+  campaignId: string;
+  overview: CampaignOverview;
+}) {
+  return (
+    <div className="mt-6 space-y-6">
+      {/* Stats row */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        <StatCard count={overview.stats.sessions} label="Sessions" />
+        <StatCard count={overview.stats.characters} label="Characters" />
+        <StatCard count={overview.stats.npcs} label="NPCs" />
+        <StatCard count={overview.stats.locations} label="Locations" />
+        <StatCard count={overview.stats.factions} label="Factions" />
+        <StatCard count={overview.stats.lore} label="Lore" />
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Recent Sessions */}
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-300">Recent Sessions</h3>
+            <Link
+              to={`/campaigns/${campaignId}/sessions`}
+              className="text-xs text-amber-400 hover:text-amber-300"
+            >
+              View all →
+            </Link>
+          </div>
+          {overview.recent_sessions.length === 0 ? (
+            <p className="text-sm text-slate-500 italic">No sessions yet.</p>
+          ) : (
+            overview.recent_sessions.map((s) => (
+              <div key={s.id} className="py-1 border-b border-slate-800 last:border-0">
+                <p className="text-sm text-slate-400">
+                  Session {s.session_number} — {s.title}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">{s.date_played}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Key NPCs */}
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-300">Key NPCs</h3>
+            <Link
+              to={`/campaigns/${campaignId}/npcs`}
+              className="text-xs text-amber-400 hover:text-amber-300"
+            >
+              View all →
+            </Link>
+          </div>
+          {overview.key_npcs.length === 0 ? (
+            <p className="text-sm text-slate-500 italic">No NPCs yet.</p>
+          ) : (
+            overview.key_npcs.map((n) => (
+              <p
+                key={n.id}
+                className="text-sm text-slate-400 py-1 border-b border-slate-800 last:border-0"
+              >
+                {n.name}
+              </p>
+            ))
+          )}
+        </div>
+
+        {/* Locations */}
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-300">Locations</h3>
+            <Link
+              to={`/campaigns/${campaignId}/locations`}
+              className="text-xs text-amber-400 hover:text-amber-300"
+            >
+              View all →
+            </Link>
+          </div>
+          {overview.locations.length === 0 ? (
+            <p className="text-sm text-slate-500 italic">No locations yet.</p>
+          ) : (
+            overview.locations.map((l) => (
+              <p
+                key={l.id}
+                className="text-sm text-slate-400 py-1 border-b border-slate-800 last:border-0"
+              >
+                {l.name}
+              </p>
+            ))
+          )}
+        </div>
+
+        {/* Factions */}
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-300">Factions</h3>
+            <Link
+              to={`/campaigns/${campaignId}/factions`}
+              className="text-xs text-amber-400 hover:text-amber-300"
+            >
+              View all →
+            </Link>
+          </div>
+          {overview.factions.length === 0 ? (
+            <p className="text-sm text-slate-500 italic">No factions yet.</p>
+          ) : (
+            overview.factions.map((f) => (
+              <p
+                key={f.id}
+                className="text-sm text-slate-400 py-1 border-b border-slate-800 last:border-0"
+              >
+                {f.name}
+              </p>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();

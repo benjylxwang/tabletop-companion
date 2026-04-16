@@ -11,6 +11,14 @@ import {
   CampaignMemberResponse,
   CampaignInvitationResponse,
   CampaignPendingInvitationsResponse,
+  Session,
+  Character,
+  Npc,
+  Location,
+  Faction,
+  Lore,
+  CampaignOverview,
+  CampaignOverviewResponse,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabaseService, getUserByEmail } from '../lib/supabaseService.js';
@@ -382,6 +390,138 @@ campaignsRouter.delete('/campaigns/:id/members/:userId', async (req, res) => {
     if (deleteError) throw new HttpError(500, 'database error');
 
     res.status(204).end();
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// ─── GET /campaigns/:id/overview ─────────────────────────────────────────────
+
+campaignsRouter.get('/campaigns/:id/overview', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    const role = await getCampaignRole(userId, id);
+    if (!role) throw new NotFoundError();
+
+    const strip = shouldStripDmFields(req.requestedView) || role === 'player';
+
+    // Fetch all data and stat counts in parallel
+    const [
+      sessionsResult,
+      charactersResult,
+      npcsResult,
+      locationsResult,
+      factionsResult,
+      sessionCountResult,
+      characterCountResult,
+      npcCountResult,
+      locationCountResult,
+      factionCountResult,
+      loreCountResult,
+    ] = await Promise.all([
+      supabaseService
+        .from('sessions')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('session_number', { ascending: false })
+        .limit(5),
+      supabaseService
+        .from('characters')
+        .select('*')
+        .eq('campaign_id', id),
+      supabaseService
+        .from('npcs')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabaseService
+        .from('locations')
+        .select('*')
+        .eq('campaign_id', id),
+      supabaseService
+        .from('factions')
+        .select('*')
+        .eq('campaign_id', id),
+      supabaseService
+        .from('sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', id),
+      supabaseService
+        .from('characters')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', id),
+      supabaseService
+        .from('npcs')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', id),
+      supabaseService
+        .from('locations')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', id),
+      supabaseService
+        .from('factions')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', id),
+      supabaseService
+        .from('lore')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', id),
+    ]);
+
+    if (sessionsResult.error) throw new HttpError(500, 'database error');
+    if (charactersResult.error) throw new HttpError(500, 'database error');
+    if (npcsResult.error) throw new HttpError(500, 'database error');
+    if (locationsResult.error) throw new HttpError(500, 'database error');
+    if (factionsResult.error) throw new HttpError(500, 'database error');
+
+    function parseRows<T>(
+      rows: Record<string, unknown>[],
+      schema: { parse: (v: unknown) => T },
+    ): T[] {
+      return rows.map((r) => schema.parse(nullToUndefined(r)));
+    }
+
+    const recent_sessions = parseRows(
+      (sessionsResult.data ?? []) as Record<string, unknown>[],
+      Session,
+    );
+    const characters = parseRows(
+      (charactersResult.data ?? []) as Record<string, unknown>[],
+      Character,
+    );
+    const key_npcs = parseRows(
+      (npcsResult.data ?? []) as Record<string, unknown>[],
+      Npc,
+    );
+    const locations = parseRows(
+      (locationsResult.data ?? []) as Record<string, unknown>[],
+      Location,
+    );
+    const factions = parseRows(
+      (factionsResult.data ?? []) as Record<string, unknown>[],
+      Faction,
+    );
+
+    const overview = CampaignOverview.parse({
+      recent_sessions: strip ? recent_sessions.map((s) => stripDmFields(s)) : recent_sessions,
+      characters: strip ? characters.map((c) => stripDmFields(c)) : characters,
+      key_npcs: strip ? key_npcs.map((n) => stripDmFields(n)) : key_npcs,
+      locations: strip ? locations.map((l) => stripDmFields(l)) : locations,
+      factions: strip ? factions.map((f) => stripDmFields(f)) : factions,
+      stats: {
+        sessions: sessionCountResult.count ?? 0,
+        characters: characterCountResult.count ?? 0,
+        npcs: npcCountResult.count ?? 0,
+        locations: locationCountResult.count ?? 0,
+        factions: factionCountResult.count ?? 0,
+        lore: loreCountResult.count ?? 0,
+      },
+    });
+
+    res.json(CampaignOverviewResponse.parse({ overview }));
   } catch (err) {
     sendError(res, err);
   }

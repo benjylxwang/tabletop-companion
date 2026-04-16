@@ -351,6 +351,152 @@ export type LoreListResponse = z.infer<typeof LoreListResponse>;
 export const LoreResponse = z.object({ lore: Lore });
 export type LoreResponse = z.infer<typeof LoreResponse>;
 
+// ─── Cross-entity reference schemas (Phase 4) ────────────────────────────────
+
+// Minimal stub for inline entity references (id + display name).
+export const EntityRef = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+export type EntityRef = z.infer<typeof EntityRef>;
+
+// ── Session with linked NPCs / Locations ─────────────────────────────────────
+
+export const SessionWithRefs = Session.extend({
+  linked_npcs: z.array(EntityRef),
+  linked_locations: z.array(EntityRef),
+});
+export type SessionWithRefs = z.infer<typeof SessionWithRefs>;
+
+export const SessionWithRefsResponse = z.object({ session: SessionWithRefs });
+export type SessionWithRefsResponse = z.infer<typeof SessionWithRefsResponse>;
+
+// ── NPC with faction + first-appeared session ─────────────────────────────────
+
+export const SessionRef = EntityRef.extend({ session_number: z.number().int() });
+export type SessionRef = z.infer<typeof SessionRef>;
+
+export const NpcWithRefs = Npc.extend({
+  faction: EntityRef.optional(),
+  first_appeared_session: SessionRef.optional(),
+});
+export type NpcWithRefs = z.infer<typeof NpcWithRefs>;
+
+export const NpcWithRefsResponse = z.object({ npc: NpcWithRefs });
+export type NpcWithRefsResponse = z.infer<typeof NpcWithRefsResponse>;
+
+// ── Location with hierarchy ───────────────────────────────────────────────────
+
+export const LocationRef = EntityRef.extend({ type: z.string().optional() });
+export type LocationRef = z.infer<typeof LocationRef>;
+
+export const LocationWithHierarchy = Location.extend({
+  ancestors: z.array(EntityRef),
+  sub_locations: z.array(LocationRef),
+});
+export type LocationWithHierarchy = z.infer<typeof LocationWithHierarchy>;
+
+export const LocationWithHierarchyResponse = z.object({ location: LocationWithHierarchy });
+export type LocationWithHierarchyResponse = z.infer<typeof LocationWithHierarchyResponse>;
+
+// ── Faction with members + inter-faction relationships ────────────────────────
+
+export const FactionRelationshipTypeEnum = z.enum(['ally', 'enemy', 'rival', 'unknown']);
+export type FactionRelationshipTypeEnum = z.infer<typeof FactionRelationshipTypeEnum>;
+
+export const FactionMemberRef = z.object({
+  npc_id: z.string(),
+  npc_name: z.string(),
+  role: z.string().nullable(),
+});
+export type FactionMemberRef = z.infer<typeof FactionMemberRef>;
+
+export const FactionRelationshipRef = z.object({
+  related_faction_id: z.string(),
+  related_faction_name: z.string(),
+  relationship_type: FactionRelationshipTypeEnum,
+});
+export type FactionRelationshipRef = z.infer<typeof FactionRelationshipRef>;
+
+export const AddFactionMember = z.object({
+  npc_id: z.string(),
+  role: z.string().optional(),
+});
+export type AddFactionMember = z.infer<typeof AddFactionMember>;
+
+export const AddFactionRelationship = z.object({
+  related_faction_id: z.string(),
+  relationship_type: FactionRelationshipTypeEnum,
+});
+export type AddFactionRelationship = z.infer<typeof AddFactionRelationship>;
+
+export const FactionWithRefs = Faction.extend({
+  members: z.array(FactionMemberRef),
+  relationships: z.array(FactionRelationshipRef),
+});
+export type FactionWithRefs = z.infer<typeof FactionWithRefs>;
+
+export const FactionWithRefsResponse = z.object({ faction: FactionWithRefs });
+export type FactionWithRefsResponse = z.infer<typeof FactionWithRefsResponse>;
+
+// ── Lore with polymorphic entity references ───────────────────────────────────
+
+export const LoreReferenceEntityTypeEnum = z.enum([
+  'session',
+  'character',
+  'npc',
+  'location',
+  'faction',
+  'lore',
+]);
+export type LoreReferenceEntityTypeEnum = z.infer<typeof LoreReferenceEntityTypeEnum>;
+
+export const LoreRef = z.object({
+  entity_type: LoreReferenceEntityTypeEnum,
+  entity_id: z.string(),
+  entity_name: z.string(),
+});
+export type LoreRef = z.infer<typeof LoreRef>;
+
+export const AddLoreReference = z.object({
+  entity_type: LoreReferenceEntityTypeEnum,
+  entity_id: z.string(),
+});
+export type AddLoreReference = z.infer<typeof AddLoreReference>;
+
+export const LoreWithRefs = Lore.extend({
+  references: z.array(LoreRef),
+});
+export type LoreWithRefs = z.infer<typeof LoreWithRefs>;
+
+export const LoreWithRefsResponse = z.object({ lore: LoreWithRefs });
+export type LoreWithRefsResponse = z.infer<typeof LoreWithRefsResponse>;
+
+// ── Campaign dashboard / overview ─────────────────────────────────────────────
+
+export const CampaignStatsSummary = z.object({
+  sessions: z.number().int(),
+  characters: z.number().int(),
+  npcs: z.number().int(),
+  locations: z.number().int(),
+  factions: z.number().int(),
+  lore: z.number().int(),
+});
+export type CampaignStatsSummary = z.infer<typeof CampaignStatsSummary>;
+
+export const CampaignOverview = z.object({
+  recent_sessions: z.array(Session),
+  characters: z.array(Character),
+  key_npcs: z.array(Npc),
+  locations: z.array(Location),
+  factions: z.array(Faction),
+  stats: CampaignStatsSummary,
+});
+export type CampaignOverview = z.infer<typeof CampaignOverview>;
+
+export const CampaignOverviewResponse = z.object({ overview: CampaignOverview });
+export type CampaignOverviewResponse = z.infer<typeof CampaignOverviewResponse>;
+
 // ─── AI generator ────────────────────────────────────────────────────────────
 // Used by the "secret" dev generator (Ctrl+Shift+G) and the per-field AI assist
 // on AITextInput / AITextarea. DM-only at the API layer.

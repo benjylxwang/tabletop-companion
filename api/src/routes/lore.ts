@@ -5,6 +5,10 @@ import {
   LoreUpdate,
   LoreListResponse,
   LoreResponse,
+  LoreWithRefs,
+  LoreWithRefsResponse,
+  AddLoreReference,
+  LoreReferenceEntityTypeEnum,
 } from '@tabletop/shared';
 import { supabaseService } from '../lib/supabaseService.js';
 import { getCampaignRole } from '../lib/campaignRole.js';
@@ -131,9 +135,73 @@ loreRouter.get('/campaigns/:campaignId/lore/:loreId', async (req, res) => {
     }
 
     const lore = Lore.parse(nullToUndefined(data as Record<string, unknown>));
-    const payload = strip ? stripDmFields(lore) : lore;
 
-    res.json(LoreResponse.parse({ lore: payload }));
+    // Fetch lore_references for this entry
+    const { data: refsData, error: refsError } = await supabaseService
+      .from('lore_references')
+      .select('entity_type, entity_id')
+      .eq('lore_id', loreId);
+
+    if (refsError) throw new HttpError(500, 'database error');
+
+    const rawRefs = refsData ?? [];
+
+    // Group entity ids by type for efficient batch resolution
+    const byType = new Map<string, string[]>();
+    for (const ref of rawRefs) {
+      const list = byType.get(ref.entity_type) ?? [];
+      list.push(ref.entity_id);
+      byType.set(ref.entity_type, list);
+    }
+
+    // Resolve entity names in parallel, one query per entity type
+    type NameRow = { id: string; name: string } | { id: string; title: string };
+    const nameMap = new Map<string, string>();
+
+    await Promise.all(
+      Array.from(byType.entries()).map(async ([entityType, ids]) => {
+        const validType = LoreReferenceEntityTypeEnum.safeParse(entityType);
+        if (!validType.success) return;
+
+        // sessions and lore use `title` as display name; others use `name`
+        const nameField = entityType === 'session' || entityType === 'lore' ? 'title' : 'name';
+        const table =
+          entityType === 'session'
+            ? 'sessions'
+            : entityType === 'character'
+            ? 'characters'
+            : entityType === 'npc'
+            ? 'npcs'
+            : entityType === 'location'
+            ? 'locations'
+            : entityType === 'faction'
+            ? 'factions'
+            : 'lore';
+
+        const { data: nameRows, error: nameError } = await supabaseService
+          .from(table as never)
+          .select(`id, ${nameField}`)
+          .in('id', ids);
+
+        if (nameError) return;
+
+        for (const row of (nameRows ?? []) as NameRow[]) {
+          const displayName = 'name' in row ? row.name : row.title;
+          nameMap.set(row.id, displayName);
+        }
+      }),
+    );
+
+    const references = rawRefs.map((ref) => ({
+      entity_type: ref.entity_type as LoreReferenceEntityTypeEnum,
+      entity_id: ref.entity_id,
+      entity_name: nameMap.get(ref.entity_id) ?? '',
+    }));
+
+    const lorePayload = strip ? stripDmFields(lore) : lore;
+
+    const withRefs = LoreWithRefs.parse({ ...lorePayload, references });
+    res.json(LoreWithRefsResponse.parse({ lore: withRefs }));
   } catch (err) {
     sendError(res, err);
   }
@@ -217,3 +285,75 @@ loreRouter.delete('/campaigns/:campaignId/lore/:loreId', async (req, res) => {
     sendError(res, err);
   }
 });
+
+// ─── POST /campaigns/:campaignId/lore/:loreId/references ─────────────────────
+
+loreRouter.post('/campaigns/:campaignId/lore/:loreId/references', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { campaignId, loreId } = req.params;
+
+    const role = await getCampaignRole(userId, campaignId);
+    if (!role) throw new NotFoundError();
+    if (role !== 'dm') throw new ForbiddenError();
+
+    // Verify lore belongs to this campaign
+    const { data: existing, error: fetchError } = await supabaseService
+      .from('lore')
+      .select('id')
+      .eq('id', loreId)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+
+    if (fetchError) throw new HttpError(500, 'database error');
+    if (!existing) throw new NotFoundError();
+
+    const parsed = AddLoreReference.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ValidationError('invalid body', parsed.error.flatten());
+    }
+
+    const { error } = await supabaseService
+      .from('lore_references')
+      .insert({
+        lore_id: loreId,
+        entity_type: parsed.data.entity_type,
+        entity_id: parsed.data.entity_id,
+      } as never);
+
+    if (error) throw new HttpError(500, 'database error');
+
+    res.status(201).end();
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// ─── DELETE /campaigns/:campaignId/lore/:loreId/references/:entityType/:entityId
+
+loreRouter.delete(
+  '/campaigns/:campaignId/lore/:loreId/references/:entityType/:entityId',
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { campaignId, loreId, entityType, entityId } = req.params;
+
+      const role = await getCampaignRole(userId, campaignId);
+      if (!role) throw new NotFoundError();
+      if (role !== 'dm') throw new ForbiddenError();
+
+      const { error } = await supabaseService
+        .from('lore_references')
+        .delete()
+        .eq('lore_id', loreId)
+        .eq('entity_type', entityType as never)
+        .eq('entity_id', entityId);
+
+      if (error) throw new HttpError(500, 'database error');
+
+      res.status(204).end();
+    } catch (err) {
+      sendError(res, err);
+    }
+  },
+);
