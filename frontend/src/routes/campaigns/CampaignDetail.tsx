@@ -18,6 +18,7 @@ import {
   Button,
   FileUpload,
   FormField,
+  GenerateImageButton,
   TextInput,
   Textarea,
   Select,
@@ -166,16 +167,25 @@ export default function CampaignDetail() {
           <FormField
             label="Cover Image"
             htmlFor="edit-cover"
-            hint="PNG or JPG, up to 10 MB"
+            hint="Upload a file or generate with AI"
           >
-            <FileUpload
-              accept="image/png,image/jpeg"
-              allowedMimeTypes={['image/png', 'image/jpeg']}
-              currentPath={coverPath}
-              currentUrl={coverSignedUrl.url}
-              uploadFile={uploadFile}
-              onUploaded={(result) => setCoverPath(result?.path ?? null)}
-            />
+            <div className="space-y-2">
+              <FileUpload
+                accept="image/png,image/jpeg"
+                allowedMimeTypes={['image/png', 'image/jpeg']}
+                currentPath={coverPath}
+                currentUrl={coverSignedUrl.url}
+                uploadFile={uploadFile}
+                onUploaded={(result) => setCoverPath(result?.path ?? null)}
+              />
+              <GenerateImageButton
+                campaignId={id!}
+                entityType="campaign"
+                entityId={id!}
+                fieldName="cover_image_url"
+                onGenerated={(path) => setCoverPath(path)}
+              />
+            </div>
           </FormField>
 
           {!isPlayerView && (

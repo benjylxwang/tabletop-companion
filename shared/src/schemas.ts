@@ -190,6 +190,7 @@ export const Character = z.object({
   personality: z.string().nullish(),
   goals_bonds: z.string().nullish(),
   character_sheet_url: z.string().nullish(),
+  portrait_url: z.string().nullish(),
   journal: z.string().nullish(),
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().nullish(),
@@ -225,6 +226,7 @@ export const Npc = z.object({
   status: NpcStatusEnum,
   first_appeared_session_id: z.string().optional(),
   faction_id: z.string().optional(),
+  portrait_url: z.string().optional(),
   created_at: z.string().datetime({ offset: true }),
   dm_notes: z.string().optional(),
 });
@@ -394,11 +396,15 @@ export type LoreResponse = z.infer<typeof LoreResponse>;
 export const GenerateCampaignMode = z.enum(['new', 'populate']);
 export type GenerateCampaignMode = z.infer<typeof GenerateCampaignMode>;
 
+export const AIProvider = z.enum(['anthropic', 'deepinfra']);
+export type AIProvider = z.infer<typeof AIProvider>;
+
 export const GenerateCampaignRequest = z
   .object({
     mode: GenerateCampaignMode,
     campaign_id: z.string().optional(),
     seed: z.string().max(500).optional(),
+    provider: AIProvider.optional(),
   })
   .refine((v) => v.mode === 'new' || !!v.campaign_id, {
     message: 'campaign_id is required when mode is "populate"',
@@ -439,8 +445,33 @@ export const GenerateFieldRequest = z.object({
   field_name: z.string().min(1).max(100),
   entity_draft: z.record(z.unknown()).optional(),
   user_hint: z.string().max(500).optional(),
+  provider: AIProvider.optional(),
 });
 export type GenerateFieldRequest = z.infer<typeof GenerateFieldRequest>;
 
 export const GenerateFieldResponse = z.object({ text: z.string() });
 export type GenerateFieldResponse = z.infer<typeof GenerateFieldResponse>;
+
+// ─── AI image generator ───────────────────────────────────────────────────────
+
+export const GenerateImageEntityType = z.enum(['campaign', 'location', 'npc', 'character']);
+export type GenerateImageEntityType = z.infer<typeof GenerateImageEntityType>;
+
+export const GenerateImageFieldName = z.enum(['cover_image_url', 'map_image_url', 'portrait_url']);
+export type GenerateImageFieldName = z.infer<typeof GenerateImageFieldName>;
+
+export const GenerateImageRequest = z.object({
+  campaign_id: z.string(),
+  entity_type: GenerateImageEntityType,
+  entity_id: z.string(),
+  field_name: GenerateImageFieldName,
+  prompt_hint: z.string().max(500).optional(),
+});
+export type GenerateImageRequest = z.infer<typeof GenerateImageRequest>;
+
+export const GenerateImageResponse = z.object({
+  path: z.string(),
+  url: z.string(),
+  expires_at: z.string(),
+});
+export type GenerateImageResponse = z.infer<typeof GenerateImageResponse>;

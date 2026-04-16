@@ -11,13 +11,22 @@ import {
   CharacterResponse,
   CharacterUpdate,
   CharactersResponse,
+  FactionCreate,
+  FactionResponse,
+  FactionUpdate,
+  FactionsResponse,
   GenerateCampaignResponse,
   GenerateFieldResponse,
+  GenerateImageResponse,
   HealthResponse,
   LocationCreate,
   LocationResponse,
   LocationUpdate,
   LocationsResponse,
+  LoreCreate,
+  LoreListResponse,
+  LoreResponse,
+  LoreUpdate,
   MeResponse,
   NpcCreate,
   NpcResponse,
@@ -33,6 +42,7 @@ import {
 import type {
   GenerateCampaignRequest,
   GenerateFieldRequest,
+  GenerateImageRequest,
 } from '@tabletop/shared';
 import type { ViewMode } from '@tabletop/shared';
 import { supabase } from './supabase';
@@ -357,6 +367,130 @@ export async function deleteCharacter(
   if (!res.ok) throw new Error(`delete character ${res.status}`);
 }
 
+// ─── Lore ────────────────────────────────────────────────────────────────────
+
+export async function fetchLoreEntries(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<LoreListResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/lore${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreListResponse.parse(await res.json());
+}
+
+export async function fetchLoreEntry(
+  campaignId: string,
+  loreId: string,
+  viewMode: ViewMode,
+): Promise<LoreResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/lore/${loreId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function createLoreEntry(
+  campaignId: string,
+  data: Omit<LoreCreate, 'campaign_id'>,
+): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function updateLoreEntry(
+  campaignId: string,
+  loreId: string,
+  data: Omit<LoreUpdate, 'campaign_id'>,
+): Promise<LoreResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update lore ${res.status}`);
+  return LoreResponse.parse(await res.json());
+}
+
+export async function deleteLoreEntry(
+  campaignId: string,
+  loreId: string,
+): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/lore/${loreId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete lore ${res.status}`);
+}
+
+// ─── Factions ────────────────────────────────────────────────────────────────
+
+export async function fetchFactions(
+  campaignId: string,
+  viewMode: ViewMode,
+): Promise<FactionsResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/factions${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`factions ${res.status}`);
+  return FactionsResponse.parse(await res.json());
+}
+
+export async function fetchFaction(
+  campaignId: string,
+  factionId: string,
+  viewMode: ViewMode,
+): Promise<FactionResponse> {
+  const res = await authedFetch(
+    `/api/campaigns/${campaignId}/factions/${factionId}${viewQuery(viewMode)}`,
+  );
+  if (!res.ok) throw new Error(`faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function createFaction(
+  campaignId: string,
+  data: Omit<FactionCreate, 'campaign_id'>,
+): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function updateFaction(
+  campaignId: string,
+  factionId: string,
+  data: Omit<FactionUpdate, 'campaign_id'>,
+): Promise<FactionResponse> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`update faction ${res.status}`);
+  return FactionResponse.parse(await res.json());
+}
+
+export async function deleteFaction(
+  campaignId: string,
+  factionId: string,
+): Promise<void> {
+  const res = await authedFetch(`/api/campaigns/${campaignId}/factions/${factionId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`delete faction ${res.status}`);
+}
+
 // ─── Uploads ──────────────────────────────────────────────────────────────────
 
 // Uses XHR (rather than fetch) so the caller can observe upload progress — fetch
@@ -441,6 +575,21 @@ export async function generateFieldAi(
     throw new Error(body.error ?? `generate field ${res.status}`);
   }
   return GenerateFieldResponse.parse(await res.json());
+}
+
+export async function generateImageAi(
+  req: GenerateImageRequest,
+): Promise<GenerateImageResponse> {
+  const res = await authedFetch('/api/ai/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `generate image ${res.status}`);
+  }
+  return GenerateImageResponse.parse(await res.json());
 }
 
 export async function fetchCampaignInvitations(campaignId: string): Promise<CampaignPendingInvitationsResponse> {

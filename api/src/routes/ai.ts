@@ -4,6 +4,8 @@ import {
   GenerateCampaignResponse,
   GenerateFieldRequest,
   GenerateFieldResponse,
+  GenerateImageRequest,
+  GenerateImageResponse,
   type GenerateCampaignCounts,
 } from '@tabletop/shared';
 import { supabaseService } from '../lib/supabaseService.js';
@@ -15,7 +17,7 @@ import {
   ForbiddenError,
   sendError,
 } from '../lib/httpErrors.js';
-import { generateJson, generateText, type GenerateJsonTool } from '../lib/anthropic.js';
+import { generateJson, generateText, generateImage, type GenerateJsonTool } from '../lib/aiProvider.js';
 
 export const aiRouter = Router();
 
@@ -248,7 +250,7 @@ aiRouter.post('/generate-campaign', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { mode, campaign_id, seed } = parsed.data;
+    const { mode, campaign_id, seed, provider } = parsed.data;
 
     // DM check for populate. New-campaign mode makes the caller the DM.
     if (mode === 'populate') {
@@ -262,6 +264,7 @@ aiRouter.post('/generate-campaign', async (req, res) => {
       system: CAMPAIGN_SYSTEM_PROMPT,
       user: userPrompt,
       tool: CAMPAIGN_GENERATOR_TOOL,
+      provider,
     });
 
     const targetCampaignId =
@@ -491,7 +494,7 @@ aiRouter.post('/generate-field', async (req, res) => {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
-    const { campaign_id, entity_type, field_name, entity_draft, user_hint } = parsed.data;
+    const { campaign_id, entity_type, field_name, entity_draft, user_hint, provider } = parsed.data;
 
     const role = await getCampaignRole(userId, campaign_id);
     if (!role) throw new NotFoundError();
@@ -501,7 +504,7 @@ aiRouter.post('/generate-field', async (req, res) => {
     const system = `You write content for a tabletop RPG campaign manager. Return ONLY the requested field text — no labels, no JSON, no markdown headings, no surrounding quotes. Plain prose that can be dropped directly into the field.\n\nCampaign snapshot (for reference — do not restate it in the output):\n${JSON.stringify(snapshot, null, 2)}`;
     const user = buildFieldPrompt(entity_type, field_name, entity_draft, user_hint);
 
-    const text = await generateText({ system, user });
+    const text = await generateText({ system, user, provider });
     res.json(GenerateFieldResponse.parse({ text }));
   } catch (err) {
     sendError(res, err);
@@ -579,4 +582,89 @@ async function fetchCampaignSnapshot(campaignId: string): Promise<CampaignSnapsh
       type: l.type ?? undefined,
     })),
   };
+}
+
+// ─── POST /ai/generate-image ─────────────────────────────────────────────────
+
+aiRouter.post('/generate-image', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+
+    const parsed = GenerateImageRequest.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ValidationError('invalid body', parsed.error.flatten());
+    }
+    const { campaign_id, entity_type, entity_id, prompt_hint } = parsed.data;
+
+    const role = await getCampaignRole(userId, campaign_id);
+    if (!role) throw new NotFoundError();
+    if (role !== 'dm') throw new ForbiddenError();
+
+    const prompt = await buildImagePrompt(entity_type, entity_id, prompt_hint);
+
+    const { path, url, expires_at } = await generateImage({ prompt, userId });
+
+    res.status(201).json(GenerateImageResponse.parse({ path, url, expires_at }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+async function buildImagePrompt(
+  entityType: string,
+  entityId: string,
+  hint: string | undefined,
+): Promise<string> {
+  const hintSuffix = hint?.trim() ? ` ${hint.trim()}` : '';
+  const style = 'Fantasy tabletop RPG illustration, painterly style, detailed.';
+
+  if (entityType === 'campaign') {
+    const { data } = await supabaseService
+      .from('campaigns')
+      .select('name, system, description')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const desc = data.description ? ` ${data.description}` : '';
+    return `${style} Campaign cover art for "${data.name}"${data.system ? ` (${data.system})` : ''}.${desc}${hintSuffix}`;
+  }
+
+  if (entityType === 'location') {
+    const { data } = await supabaseService
+      .from('locations')
+      .select('name, type, description')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const typeLabel = data.type ? ` ${data.type}` : '';
+    const desc = data.description ? ` ${data.description}` : '';
+    return `${style}${typeLabel ? ` A${typeLabel}` : ''} named "${data.name}".${desc}${hintSuffix}`;
+  }
+
+  if (entityType === 'npc') {
+    const { data } = await supabaseService
+      .from('npcs')
+      .select('name, role_title, appearance')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const role = data.role_title ? `, ${data.role_title}` : '';
+    const appearance = data.appearance ? ` ${data.appearance}` : '';
+    return `${style} Character portrait of ${data.name}${role}.${appearance}${hintSuffix}`;
+  }
+
+  if (entityType === 'character') {
+    const { data } = await supabaseService
+      .from('characters')
+      .select('name, race_species, class, appearance')
+      .eq('id', entityId)
+      .maybeSingle();
+    if (!data) throw new NotFoundError();
+    const race = data.race_species ? ` ${data.race_species}` : '';
+    const cls = data.class ? ` ${data.class}` : '';
+    const appearance = data.appearance ? ` ${data.appearance}` : '';
+    return `${style} Character portrait of ${data.name},${race}${cls}.${appearance}${hintSuffix}`;
+  }
+
+  throw new HttpError(400, 'unsupported entity type');
 }
