@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+export const ViewMode = z.enum(['dm', 'player']);
+export type ViewMode = z.infer<typeof ViewMode>;
+
 export const HealthResponse = z.object({
   status: z.literal('ok'),
   timestamp: z.string().datetime(),
