@@ -25,6 +25,10 @@ function imageModel(): string {
   return process.env.DEEPINFRA_IMAGE_MODEL ?? 'black-forest-labs/FLUX-1-schnell';
 }
 
+function largeImageModel(): string {
+  return process.env.DEEPINFRA_LARGE_IMAGE_MODEL ?? 'black-forest-labs/FLUX-1-dev';
+}
+
 export async function generateJson<T>({
   system,
   user,
@@ -147,7 +151,7 @@ export async function generateImageLargeFormat({
   const key = process.env.DEEPINFRA_API_KEY;
   if (!key) throw new HttpError(503, 'AI features are disabled: DEEPINFRA_API_KEY is not configured');
 
-  const model = imageModel();
+  const model = largeImageModel();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 180_000);
 
@@ -159,7 +163,7 @@ export async function generateImageLargeFormat({
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt, width, height, num_inference_steps: 4 }),
+      body: JSON.stringify({ prompt, width, height, num_inference_steps: 20 }),
       signal: controller.signal,
     });
   } finally {
