@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
+import { EntityAvatar } from '../../components/ui/EntityAvatar';
 import type { NpcCreate, NpcStatusEnum } from '@tabletop/shared';
 
 const STATUS_OPTIONS: { value: NpcStatusEnum; label: string }[] = [
@@ -246,15 +247,18 @@ export default function NpcList() {
             <li key={n.id}>
               <Link
                 to={`/campaigns/${campaignId}/npcs/${n.id}`}
-                className="block h-full rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                className="flex items-center gap-3 h-full rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold text-slate-100">{n.name}</p>
-                  <StatusBadge status={n.status} />
+                <EntityAvatar imageUrl={n.portrait_url} entityType="npc" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-slate-100 truncate">{n.name}</p>
+                    <StatusBadge status={n.status} />
+                  </div>
+                  {n.role_title && (
+                    <p className="text-sm text-slate-400 mt-0.5 truncate">{n.role_title}</p>
+                  )}
                 </div>
-                {n.role_title && (
-                  <p className="text-sm text-slate-400 mt-1">{n.role_title}</p>
-                )}
               </Link>
             </li>
           ))}

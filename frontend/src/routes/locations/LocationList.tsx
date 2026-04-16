@@ -18,6 +18,7 @@ import {
   TextInput,
   Textarea,
 } from '../../components';
+import { EntityAvatar } from '../../components/ui/EntityAvatar';
 import type { Location, LocationCreate } from '@tabletop/shared';
 
 function CreateLocationModal({
@@ -230,21 +231,24 @@ export default function LocationList() {
             <li key={l.id}>
               <Link
                 to={`/campaigns/${campaignId}/locations/${l.id}`}
-                className="block rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-slate-100">{l.name}</p>
-                  {l.type && (
-                    <span className="text-xs text-amber-400 uppercase tracking-wide">
-                      {l.type}
-                    </span>
+                <EntityAvatar imageUrl={l.map_image_url} entityType="location" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-slate-100 truncate">{l.name}</p>
+                    {l.type && (
+                      <span className="text-xs text-amber-400 uppercase tracking-wide shrink-0">
+                        {l.type}
+                      </span>
+                    )}
+                  </div>
+                  {l.description && (
+                    <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">
+                      {l.description}
+                    </p>
                   )}
                 </div>
-                {l.description && (
-                  <p className="text-sm text-slate-400 mt-1 line-clamp-2">
-                    {l.description}
-                  </p>
-                )}
               </Link>
             </li>
           ))}
