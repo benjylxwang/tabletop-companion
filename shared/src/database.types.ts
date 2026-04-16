@@ -19,7 +19,7 @@ export type Database = {
           system: string | null
           description: string | null
           cover_image_url: string | null
-          status: 'active' | 'hiatus' | 'complete'
+          status: 'Active' | 'Hiatus' | 'Complete'
           dm_notes: string | null
           created_at: string
           updated_at: string
@@ -30,7 +30,7 @@ export type Database = {
           system?: string | null
           description?: string | null
           cover_image_url?: string | null
-          status?: 'active' | 'hiatus' | 'complete'
+          status?: 'Active' | 'Hiatus' | 'Complete'
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
@@ -41,7 +41,7 @@ export type Database = {
           system?: string | null
           description?: string | null
           cover_image_url?: string | null
-          status?: 'active' | 'hiatus' | 'complete'
+          status?: 'Active' | 'Hiatus' | 'Complete'
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
