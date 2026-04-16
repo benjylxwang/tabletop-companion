@@ -112,7 +112,7 @@ const CAMPAIGN_GENERATOR_TOOL: GenerateJsonTool = {
             appearance: { type: 'string' },
             personality: { type: 'string' },
             relationships: { type: 'string' },
-            status: { type: 'string', enum: ['alive', 'dead', 'unknown'] },
+            status: { type: 'string', enum: ['Alive', 'Dead', 'Unknown'] },
             faction_ref: { type: 'string' },
             first_session_ref: { type: 'string' },
             dm_notes: { type: 'string' },
@@ -204,7 +204,7 @@ interface CampaignPayload {
     appearance?: string;
     personality?: string;
     relationships?: string;
-    status?: 'alive' | 'dead' | 'unknown';
+    status?: 'Alive' | 'Dead' | 'Unknown';
     faction_ref?: string;
     first_session_ref?: string;
     dm_notes?: string;
@@ -414,7 +414,7 @@ async function insertPayload(
       appearance: n.appearance ?? null,
       personality: n.personality ?? null,
       relationships: n.relationships ?? null,
-      status: n.status ?? 'alive',
+      status: n.status ?? 'Alive',
       faction_id: n.faction_ref ? factionIds[n.faction_ref] ?? null : null,
       first_appeared_session_id: n.first_session_ref
         ? sessionIds[n.first_session_ref] ?? null
