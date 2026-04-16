@@ -13,7 +13,7 @@ let lore2Id: string;
 const dmEmail = `e2e-lore-refs-${Date.now()}@example.com`;
 const testPassword = 'E2eTestPass1!';
 
-test.describe('Lore ↔ entity references (API)', () => {
+test.describe.serial('Lore ↔ entity references (API)', () => {
   test.skip(!apiURL || !supabaseUrl || !supabaseAnonKey, 'API/Supabase env vars required');
 
   test.beforeAll(async ({ request }) => {

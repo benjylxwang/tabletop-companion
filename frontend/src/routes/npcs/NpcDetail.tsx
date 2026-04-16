@@ -118,12 +118,15 @@ export default function NpcDetail() {
         relationships: relationships || undefined,
         status,
         dm_notes: dmNotes || undefined,
-        faction_id: factionId || undefined,
-        first_appeared_session_id: firstAppearedSessionId || undefined,
+        faction_id: factionId || null,
+        first_appeared_session_id: firstAppearedSessionId || null,
         portrait_url: portraitPath ?? undefined,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['npc', campaignId, npcId, viewMode], updated);
+    onSuccess: () => {
+      // Invalidate rather than setQueryData — the update returns a plain Npc
+      // without enriched refs (faction name, session title), so we need a fresh
+      // GET to rebuild the NpcWithRefs shape.
+      void queryClient.invalidateQueries({ queryKey: ['npc', campaignId, npcId] });
       void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
       setEditing(false);
     },

@@ -250,7 +250,11 @@ export const NpcCreate = Npc.omit({
 });
 export type NpcCreate = z.infer<typeof NpcCreate>;
 
-export const NpcUpdate = NpcCreate.partial();
+// Allow explicit null on linkable fields so the frontend can clear them.
+export const NpcUpdate = NpcCreate.partial().extend({
+  faction_id: z.string().nullable().optional(),
+  first_appeared_session_id: z.string().nullable().optional(),
+});
 export type NpcUpdate = z.infer<typeof NpcUpdate>;
 
 export const NpcsResponse = z.object({ npcs: z.array(Npc) });

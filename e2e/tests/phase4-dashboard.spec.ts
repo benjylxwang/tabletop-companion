@@ -10,7 +10,7 @@ let campaignId: string;
 const dmEmail = `e2e-dashboard-${Date.now()}@example.com`;
 const testPassword = 'E2eTestPass1!';
 
-test.describe('Campaign dashboard / overview (API)', () => {
+test.describe.serial('Campaign dashboard / overview (API)', () => {
   test.skip(!apiURL || !supabaseUrl || !supabaseAnonKey, 'API/Supabase env vars required');
 
   test.beforeAll(async ({ request }) => {

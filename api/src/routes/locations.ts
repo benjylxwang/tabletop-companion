@@ -66,6 +66,7 @@ async function getLocation(req: Request, res: Response): Promise<void> {
         .from('locations')
         .select('id, name, parent_location_id')
         .eq('id', currentParentId)
+        .eq('campaign_id', campaignId)
         .maybeSingle();
 
       if (parentError) throw new HttpError(500, 'database error');
