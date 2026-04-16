@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
+import { AuthProvider } from './lib/auth';
 import { ViewModeProvider } from './contexts/ViewModeContext';
 import './index.css';
 
@@ -12,12 +13,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ViewModeProvider>
-          <App />
-        </ViewModeProvider>
+        <AuthProvider>
+          <ViewModeProvider>
+            <App />
+          </ViewModeProvider>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,
 );
-
-// smoke test 2026-04-15T15:09:38Z

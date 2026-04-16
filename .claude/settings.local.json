@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh issue:*)",
+      "Bash(where gh:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" issue view 51 --repo benjylxwang/tabletop-companion)",
+      "Bash(curl -s \"https://api.github.com/repos/benjylxwang/tabletop-companion/issues/51\")",
+      "Bash(pnpm --filter frontend build)",
+      "Bash(npx --yes pnpm@9.12.0 --filter frontend build)",
+      "Bash(npx --yes pnpm@9.12.0 install)",
+      "mcp__Claude_Preview__preview_start",
+      "WebSearch",
+      "WebFetch(domain:logos.fandom.com)",
+      "WebFetch(domain:foundryvtt.com)",
+      "WebFetch(domain:abduzeedo.com)",
+      "WebFetch(domain:brandfetch.com)",
+      "WebFetch(domain:monopo.london)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create --repo benjylxwang/tabletop-companion --head claude/cranky-lewin --base main --title 'feat\\(frontend\\): add d20 shield logo and crest wordmark for sidebar' --body ':*)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --repo benjylxwang/tabletop-companion --head claude/cranky-lewin --base main --title 'feat\\(frontend\\): add d20 shield logo and crest wordmark for sidebar' --body ':*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
+    ]
+  }
+}

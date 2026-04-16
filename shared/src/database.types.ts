@@ -19,7 +19,7 @@ export type Database = {
           system: string | null
           description: string | null
           cover_image_url: string | null
-          status: 'active' | 'hiatus' | 'complete'
+          status: 'Active' | 'Hiatus' | 'Complete'
           dm_notes: string | null
           created_at: string
           updated_at: string
@@ -30,7 +30,7 @@ export type Database = {
           system?: string | null
           description?: string | null
           cover_image_url?: string | null
-          status?: 'active' | 'hiatus' | 'complete'
+          status?: 'Active' | 'Hiatus' | 'Complete'
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
@@ -41,7 +41,7 @@ export type Database = {
           system?: string | null
           description?: string | null
           cover_image_url?: string | null
-          status?: 'active' | 'hiatus' | 'complete'
+          status?: 'Active' | 'Hiatus' | 'Complete'
           dm_notes?: string | null
           created_at?: string
           updated_at?: string
@@ -601,6 +601,35 @@ export type Database = {
             columns: ["lore_id"]
             isOneToOne: false
             referencedRelation: "lore"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          display_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          display_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          display_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: false
+            referencedRelation: "auth.users"
             referencedColumns: ["id"]
           }
         ]

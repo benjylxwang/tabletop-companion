@@ -10,6 +10,7 @@ import {
   EyeOff,
   Ghost,
   LayoutDashboard,
+  LogOut,
   MapPin,
   ScrollText,
   Shield,
@@ -19,6 +20,7 @@ import { fetchCampaign } from '../lib/api';
 import { useViewMode } from '../contexts/ViewModeContext';
 import logoIcon from '../assets/logo-icon.svg';
 import logoWordmark from '../assets/logo-wordmark.svg';
+import { useAuth } from '../lib/auth';
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
@@ -50,10 +52,10 @@ function NavItem({ to, icon, label, collapsed, end = false }: NavItemProps) {
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
         [
-          'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400',
+          'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
           isActive
-            ? 'border-l-2 border-amber-500 bg-amber-500/10 text-amber-400 pl-[6px]'
-            : 'border-l-2 border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+            ? 'border-l-2 border-red-800 bg-[rgba(212,160,23,0.12)] text-[#d4a017] pl-[6px]'
+            : 'border-l-2 border-transparent text-[#b8860b] hover:bg-[#2a1a0a] hover:text-[#f5f0e0]',
         ].join(' ')
       }
     >
@@ -66,9 +68,9 @@ function NavItem({ to, icon, label, collapsed, end = false }: NavItemProps) {
 // ─── Section label ────────────────────────────────────────────────────────────
 
 function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
-  if (collapsed) return <div className="my-1 h-px bg-slate-800 mx-2" />;
+  if (collapsed) return <div className="my-1 h-px bg-[#3d2a10] mx-2" />;
   return (
-    <p className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+    <p className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-[#b8860b]">
       {label}
     </p>
   );
@@ -79,6 +81,7 @@ function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState<boolean>(loadCollapsed);
   const { viewMode, setViewMode } = useViewMode();
+  const { user, signOut } = useAuth();
 
   const campaignMatch = useMatch('/campaigns/:id/*') ?? useMatch('/campaigns/:id');
   const campaignId = campaignMatch?.params.id;
@@ -104,22 +107,33 @@ export default function Layout() {
   const iconSize = 18;
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-[#0a0706] text-[#f5f0e0]">
       {/* ── Sidebar ── */}
       <aside
         className={[
-          'flex shrink-0 flex-col border-r border-slate-800 bg-slate-900',
+          'flex shrink-0 flex-col border-r border-[#3d2a10] bg-[#1a1008]',
           'transition-[width] duration-200 ease-in-out overflow-hidden',
           collapsed ? 'w-14' : 'w-60',
         ].join(' ')}
         aria-label="Main navigation"
       >
         {/* Brand */}
-        <div className="flex h-14 items-center border-b border-slate-800 px-3">
-          <img src={logoIcon} alt="Tabletop Companion" className="h-8 w-8 shrink-0" />
-          {!collapsed && (
-            <img src={logoWordmark} alt="Tabletop Companion" className="ml-3 h-5" />
-          )}
+        <div className="flex h-14 items-center justify-between border-b border-[#3d2a10] px-3">
+          <div className="flex items-center min-w-0">
+            <img src={logoIcon} alt="Tabletop Companion" className="h-8 w-8 shrink-0" />
+            {!collapsed && (
+              <img src={logoWordmark} alt="Tabletop Companion" className="ml-3 h-5" />
+            )}
+          </div>
+          <button
+            onClick={toggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="flex shrink-0 items-center justify-center rounded-md p-1 text-[#b8860b] transition-colors hover:bg-[#2a1a0a] hover:text-[#f5f0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
         {/* Nav */}
@@ -184,14 +198,14 @@ export default function Layout() {
 
         {/* DM / Player toggle — only shown for DMs inside a campaign */}
         {campaignId && isDm && (
-          <div className="border-t border-slate-800 px-2 py-3">
+          <div className="border-t border-[#3d2a10] px-2 py-3">
             {!collapsed && (
-              <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-[#b8860b]">
                 View as
               </p>
             )}
             <div
-              className="flex rounded-md overflow-hidden border border-slate-700 text-xs"
+              className="flex rounded-md overflow-hidden border border-[#3d2a10] text-xs"
               role="group"
               aria-label="View mode toggle"
             >
@@ -200,10 +214,10 @@ export default function Layout() {
                 title="DM View"
                 aria-pressed={viewMode === 'dm'}
                 className={[
-                  'flex flex-1 items-center justify-center gap-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400',
+                  'flex flex-1 items-center justify-center gap-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
                   viewMode === 'dm'
-                    ? 'bg-amber-500/20 text-amber-400 font-semibold'
-                    : 'bg-slate-800 text-slate-400 hover:text-slate-100',
+                    ? 'bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-semibold'
+                    : 'bg-[#2a1a0a] text-[#b8860b] hover:text-[#f5f0e0]',
                 ].join(' ')}
               >
                 <Eye size={14} />
@@ -214,10 +228,10 @@ export default function Layout() {
                 title="Player View"
                 aria-pressed={viewMode === 'player'}
                 className={[
-                  'flex flex-1 items-center justify-center gap-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400',
+                  'flex flex-1 items-center justify-center gap-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500',
                   viewMode === 'player'
-                    ? 'bg-amber-500/20 text-amber-400 font-semibold'
-                    : 'bg-slate-800 text-slate-400 hover:text-slate-100',
+                    ? 'bg-[rgba(212,160,23,0.12)] text-[#d4a017] font-semibold'
+                    : 'bg-[#2a1a0a] text-[#b8860b] hover:text-[#f5f0e0]',
                 ].join(' ')}
               >
                 <EyeOff size={14} />
@@ -227,16 +241,24 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Collapse toggle */}
-        <div className="border-t border-slate-800 px-2 py-2">
+        {/* Account / sign out */}
+        <div className="border-t border-[#3d2a10] px-2 py-2">
+          {!collapsed && user?.email && (
+            <p
+              className="mb-1 truncate px-2 text-[11px] text-[#b8860b]"
+              title={user.email}
+            >
+              {user.email}
+            </p>
+          )}
           <button
-            onClick={toggleCollapse}
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="flex w-full items-center justify-center rounded-md py-1.5 text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            onClick={() => signOut()}
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-[#b8860b] transition-colors hover:bg-[#2a1a0a] hover:text-[#f5f0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            <LogOut size={iconSize} className="shrink-0" />
+            {!collapsed && <span>Sign out</span>}
           </button>
         </div>
       </aside>
