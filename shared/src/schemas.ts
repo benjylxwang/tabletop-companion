@@ -9,6 +9,16 @@ export const HealthResponse = z.object({
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export const MeResponse = z.object({
+  user: z.object({
+    id: z.string(),
+    email: z.string().email().nullable(),
+  }),
+});
+export type MeResponse = z.infer<typeof MeResponse>;
+
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 export const CampaignStatusEnum = z.enum(['Active', 'Hiatus', 'Complete']);

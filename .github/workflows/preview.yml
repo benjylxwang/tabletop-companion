@@ -59,6 +59,8 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.railway.outputs.frontend_url }}
           PLAYWRIGHT_API_URL: ${{ steps.railway.outputs.api_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: pnpm test:e2e
 
       - name: Upload Playwright report

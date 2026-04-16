@@ -5,6 +5,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { viewModeMiddleware } from './middleware/viewMode.js';
 import { healthRouter } from './routes/health.js';
 import { campaignsRouter } from './routes/campaigns.js';
+import { meRouter } from './routes/me.js';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use(viewModeMiddleware);
 
 app.use(healthRouter);
 
+app.use('/api', authMiddleware, meRouter);
 app.use('/api', authMiddleware, campaignsRouter);
 
 const port = Number(process.env.PORT) || 3000;
