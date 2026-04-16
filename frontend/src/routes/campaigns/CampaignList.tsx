@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { BookOpen } from 'lucide-react';
 import { fetchCampaigns, createCampaign, fetchMyInvitations, acceptInvitation, declineInvitation } from '../../lib/api';
 import { useViewMode } from '../../contexts/ViewModeContext';
+import { useSignedUrl } from '../../lib/useSignedUrl';
 import {
   Button,
   Modal,
@@ -13,8 +15,7 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
-import { EntityAvatar } from '../../components/ui/EntityAvatar';
-import type { CampaignCreate, CampaignStatusEnum } from '@tabletop/shared';
+import type { CampaignCreate, CampaignStatusEnum, CampaignWithRole } from '@tabletop/shared';
 
 const STATUS_OPTIONS: { value: CampaignStatusEnum; label: string }[] = [
   { value: 'Active', label: 'Active' },
@@ -132,7 +133,7 @@ function PendingInvitations() {
   if (isLoading || !data || data.invitations.length === 0) return null;
 
   return (
-    <div className="mb-8 max-w-2xl">
+    <div className="mb-8">
       <h2 className="text-base font-semibold text-slate-300 mb-3">Pending Invitations</h2>
       <ul className="space-y-2">
         {data.invitations.map((inv) => (
@@ -170,6 +171,48 @@ function PendingInvitations() {
   );
 }
 
+function CampaignCard({ campaign }: { campaign: CampaignWithRole }) {
+  const { url: coverUrl, isLoading } = useSignedUrl(campaign.cover_image_url);
+
+  return (
+    <Link
+      to={`/campaigns/${campaign.id}`}
+      className="flex flex-col rounded-xl border border-slate-800 bg-slate-900 overflow-hidden hover:border-amber-500/50 hover:bg-slate-800/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+    >
+      {/* Cover image banner */}
+      <div className="aspect-video bg-slate-800 overflow-hidden shrink-0">
+        {campaign.cover_image_url && isLoading ? (
+          <div className="w-full h-full animate-pulse bg-slate-700" />
+        ) : coverUrl ? (
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <BookOpen size={36} className="text-slate-600" />
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <p className="font-semibold text-slate-100 leading-snug">{campaign.name}</p>
+          <span className="text-xs text-amber-400 uppercase tracking-wide shrink-0 mt-0.5">
+            {campaign.my_role}
+          </span>
+        </div>
+        <p className="text-sm text-slate-400">
+          {campaign.system && `${campaign.system} · `}{campaign.status}
+        </p>
+        {campaign.description && (
+          <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">
+            {campaign.description}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 export default function CampaignList() {
   const { viewMode } = useViewMode();
   const [showCreate, setShowCreate] = useState(false);
@@ -202,27 +245,11 @@ export default function CampaignList() {
         />
       )}
 
-      <ul className="space-y-3 max-w-2xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data?.campaigns.map((c) => (
-          <li key={c.id}>
-            <Link
-              to={`/campaigns/${c.id}`}
-              className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-            >
-              <EntityAvatar imageUrl={c.cover_image_url} entityType="campaign" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-100 truncate">{c.name}</p>
-                  <span className="text-xs text-amber-400 uppercase tracking-wide shrink-0">{c.my_role}</span>
-                </div>
-                <p className="text-sm text-slate-400 mt-0.5">
-                  {c.system && `${c.system} · `}{c.status}
-                </p>
-              </div>
-            </Link>
-          </li>
+          <CampaignCard key={c.id} campaign={c} />
         ))}
-      </ul>
+      </div>
 
       <CreateCampaignModal open={showCreate} onClose={() => setShowCreate(false)} />
     </div>

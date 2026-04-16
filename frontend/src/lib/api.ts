@@ -864,8 +864,9 @@ export async function removeSessionLocation(
 
 export async function fetchCampaignOverview(
   campaignId: string,
+  viewMode: ViewMode,
 ): Promise<CampaignOverviewResponse> {
-  const res = await authedFetch(`/api/campaigns/${campaignId}/overview`);
+  const res = await authedFetch(`/api/campaigns/${campaignId}/overview${viewQuery(viewMode)}`);
   if (!res.ok) throw new Error(`campaign overview ${res.status}`);
   return CampaignOverviewResponse.parse(await res.json());
 }
