@@ -13,8 +13,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -39,8 +37,8 @@ jobs:
         id: railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-          REPO: ${{ github.repository }}
           TIMEOUT_MS: "180000"
         run: node .github/scripts/wait-for-railway.mjs
 
@@ -63,6 +61,19 @@ jobs:
             e2e/test-results
           retention-days: 14
 
+      - name: Upload Playwright artifacts to R2
+        if: always()
+        id: r2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL_BASE: ${{ secrets.R2_PUBLIC_URL_BASE }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+        run: node .github/scripts/upload-to-r2.mjs
+
       - name: Comment on PR
         if: always()
         uses: marocchino/sticky-pull-request-comment@v2
@@ -73,5 +84,11 @@ jobs:
 
             - Frontend: ${{ steps.railway.outputs.frontend_url || '_not resolved_' }}
             - API: ${{ steps.railway.outputs.api_url || '_not resolved_' }}
-            - [Playwright report artifact](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)
+            - [Playwright report](${{ steps.r2.outputs.report_url }}) (or [download artifact](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts))
             - [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            <details><summary>Test videos</summary>
+
+            ${{ steps.r2.outputs.videos_markdown }}
+
+            </details>

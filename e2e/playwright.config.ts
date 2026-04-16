@@ -12,7 +12,7 @@ export default defineConfig({
   reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }], ['list']],
   use: {
     baseURL,
-    video: 'retain-on-failure',
+    video: 'on',
     trace: 'retain-on-failure',
   },
   projects: [

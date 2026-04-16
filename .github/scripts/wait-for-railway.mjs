@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 // Poll Railway's GraphQL API until the frontend and api services both have a
 // SUCCESS deployment for the given commit SHA, then emit their public URLs.
 //
@@ -21,14 +22,14 @@
 // (project id, service ids) are required, because the token scopes the lookup.
 
 const TOKEN = process.env.RAILWAY_TOKEN;
+const PROJECT_ID = process.env.RAILWAY_PROJECT_ID;
 const SHA = process.env.COMMIT_SHA;
-const REPO = process.env.REPO;
 const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 180_000);
 const POLL_MS = 10_000;
 const API = 'https://backboard.railway.app/graphql/v2';
 
-if (!TOKEN || !SHA || !REPO) {
-  console.error('missing required env: RAILWAY_TOKEN, COMMIT_SHA, REPO');
+if (!TOKEN || !SHA || !PROJECT_ID) {
+  console.error('missing required env: RAILWAY_TOKEN, RAILWAY_PROJECT_ID, COMMIT_SHA');
   process.exit(2);
 }
 
@@ -46,28 +47,10 @@ async function gql(query, variables = {}) {
   return json.data;
 }
 
-async function findProjectId() {
-  const data = await gql(`
-    query {
-      me {
-        projects {
-          edges { node { id name } }
-        }
-      }
-    }
-  `);
-  const projects = data.me.projects.edges.map((e) => e.node);
-  if (projects.length === 0) throw new Error('No Railway projects on this token');
-
-  // Try to match by name containing the repo name; fall back to single-project default.
-  const repoName = REPO.split('/')[1].toLowerCase();
-  const byName = projects.find((p) => p.name.toLowerCase().includes(repoName));
-  if (byName) return byName.id;
-  if (projects.length === 1) return projects[0].id;
-  throw new Error(
-    `Cannot disambiguate project. Candidates: ${projects.map((p) => p.name).join(', ')}`,
-  );
-}
+// Project ID is supplied explicitly via RAILWAY_PROJECT_ID. We tried
+// auto-discovering via `me`/`projectToken` queries, but Railway tokens with
+// narrow scopes reject those. Explicit is simpler and works for every token
+// type.
 
 async function getServices(projectId) {
   const data = await gql(
@@ -132,13 +115,13 @@ function matches(dep) {
 function setOutput(key, value) {
   const line = `${key}=${value}\n`;
   if (process.env.GITHUB_OUTPUT) {
-    require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, line);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, line);
   }
   console.log(line.trim());
 }
 
 async function main() {
-  const projectId = await findProjectId();
+  const projectId = PROJECT_ID;
   console.log(`project=${projectId}`);
   const deadline = Date.now() + TIMEOUT_MS;
 
@@ -157,11 +140,21 @@ async function main() {
       latestDeployment(projectId, api.id),
     ]);
 
-    const feMatch = feDeploys.find((d) => matches(d) && d.status === 'SUCCESS');
-    const apiMatch = apiDeploys.find((d) => matches(d) && d.status === 'SUCCESS');
+    // Prefer a deployment matching THIS commit SHA, but fall back to the most
+    // recent SUCCESS. Railway skips deploys when a service's watched paths
+    // aren't modified (`No deployment needed - watched paths not modified`),
+    // which means the currently-live deployment is from an earlier commit and
+    // no SHA match will ever appear. Accepting "most recent SUCCESS" covers
+    // that case while still preferring exact matches when present.
+    const pickReady = (deploys) =>
+      deploys.find((d) => matches(d) && d.status === 'SUCCESS') ??
+      deploys.find((d) => d.status === 'SUCCESS');
 
-    const feAny = feDeploys.find(matches);
-    const apiAny = apiDeploys.find(matches);
+    const feMatch = pickReady(feDeploys);
+    const apiMatch = pickReady(apiDeploys);
+
+    const feAny = feDeploys.find(matches) ?? feDeploys[0];
+    const apiAny = apiDeploys.find(matches) ?? apiDeploys[0];
 
     if ([feAny, apiAny].some((d) => d?.status === 'FAILED' || d?.status === 'CRASHED')) {
       throw new Error(
