@@ -316,3 +316,61 @@ export type LoreListResponse = z.infer<typeof LoreListResponse>;
 
 export const LoreResponse = z.object({ lore: Lore });
 export type LoreResponse = z.infer<typeof LoreResponse>;
+
+// ─── AI generator ────────────────────────────────────────────────────────────
+// Used by the "secret" dev generator (Ctrl+Shift+G) and the per-field AI assist
+// on AITextInput / AITextarea. DM-only at the API layer.
+
+export const GenerateCampaignMode = z.enum(['new', 'populate']);
+export type GenerateCampaignMode = z.infer<typeof GenerateCampaignMode>;
+
+export const GenerateCampaignRequest = z
+  .object({
+    mode: GenerateCampaignMode,
+    campaign_id: z.string().optional(),
+    seed: z.string().max(500).optional(),
+  })
+  .refine((v) => v.mode === 'new' || !!v.campaign_id, {
+    message: 'campaign_id is required when mode is "populate"',
+    path: ['campaign_id'],
+  });
+export type GenerateCampaignRequest = z.infer<typeof GenerateCampaignRequest>;
+
+export const GenerateCampaignCounts = z.object({
+  sessions: z.number().int(),
+  npcs: z.number().int(),
+  characters: z.number().int(),
+  locations: z.number().int(),
+  factions: z.number().int(),
+  lore: z.number().int(),
+});
+export type GenerateCampaignCounts = z.infer<typeof GenerateCampaignCounts>;
+
+export const GenerateCampaignResponse = z.object({
+  campaign_id: z.string(),
+  counts: GenerateCampaignCounts,
+});
+export type GenerateCampaignResponse = z.infer<typeof GenerateCampaignResponse>;
+
+export const GenerateFieldEntityType = z.enum([
+  'campaign',
+  'session',
+  'character',
+  'npc',
+  'location',
+  'faction',
+  'lore',
+]);
+export type GenerateFieldEntityType = z.infer<typeof GenerateFieldEntityType>;
+
+export const GenerateFieldRequest = z.object({
+  campaign_id: z.string(),
+  entity_type: GenerateFieldEntityType,
+  field_name: z.string().min(1).max(100),
+  entity_draft: z.record(z.unknown()).optional(),
+  user_hint: z.string().max(500).optional(),
+});
+export type GenerateFieldRequest = z.infer<typeof GenerateFieldRequest>;
+
+export const GenerateFieldResponse = z.object({ text: z.string() });
+export type GenerateFieldResponse = z.infer<typeof GenerateFieldResponse>;

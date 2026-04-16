@@ -11,6 +11,7 @@
     "lint": "echo 'no lint yet'"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@supabase/supabase-js": "^2.45.4",
     "@tabletop/shared": "workspace:*",
     "cors": "^2.8.5",
