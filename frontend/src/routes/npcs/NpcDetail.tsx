@@ -319,15 +319,15 @@ export default function NpcDetail() {
 
       <ConfirmModal
         open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        onConfirm={() => {
-          deleteMutation.mutate();
-          setConfirmDelete(false);
+        onClose={() => {
+          if (!deleteMutation.isPending) setConfirmDelete(false);
         }}
+        onConfirm={() => deleteMutation.mutate()}
         title="Delete NPC"
         message={`Delete "${npc.name}"? This cannot be undone.`}
         confirmLabel="Delete"
         isLoading={deleteMutation.isPending}
+        error={deleteMutation.error ? 'Failed to delete NPC. Please try again.' : null}
       />
     </div>
   );

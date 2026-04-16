@@ -127,6 +127,7 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: 'danger' | 'primary';
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export function ConfirmModal({
@@ -139,10 +140,16 @@ export function ConfirmModal({
   cancelLabel = 'Cancel',
   variant = 'danger',
   isLoading = false,
+  error = null,
 }: ConfirmModalProps) {
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm">
       <p className="text-sm text-ink-700">{message}</p>
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-crimson-600">
+          {error}
+        </p>
+      )}
       <div className="mt-6 flex justify-end gap-3">
         <Button variant="secondary" onClick={onClose} disabled={isLoading}>
           {cancelLabel}
