@@ -1,0 +1,28 @@
+import React from 'react';
+
+interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean;
+}
+
+export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
+  function TextInput({ error = false, className = '', ...rest }, ref) {
+    return (
+      <input
+        ref={ref}
+        aria-invalid={error || undefined}
+        className={[
+          'w-full rounded border bg-parchment-200 px-3 py-2 text-sm text-ink-900',
+          'placeholder:text-ink-300',
+          'transition-colors duration-150',
+          'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          error
+            ? 'border-crimson-600 focus:ring-crimson-600 focus:border-crimson-600'
+            : 'border-parchment-300',
+          className,
+        ].join(' ')}
+        {...rest}
+      />
+    );
+  },
+);
