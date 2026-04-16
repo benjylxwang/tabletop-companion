@@ -10,11 +10,13 @@
     "predev": "pnpm --filter @tabletop/shared build",
     "dev": "concurrently -n shared,api,web -c gray,blue,green \"pnpm --filter @tabletop/shared dev\" \"pnpm --filter api dev\" \"pnpm --filter frontend dev\"",
     "build": "pnpm -r build",
+    "gen:types": "node scripts/gen-db-types.mjs",
     "test:e2e": "pnpm --filter e2e test",
     "lint": "pnpm -r lint"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",
+    "pgsql-ast-parser": "^12.0.2",
     "typescript": "^5.6.3"
   }
 }
