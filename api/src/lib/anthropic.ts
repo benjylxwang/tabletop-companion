@@ -1,19 +1,31 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { Tool } from '@anthropic-ai/sdk/resources/messages.js';
 import { HttpError } from './httpErrors.js';
-
-const { ANTHROPIC_API_KEY } = process.env;
-
-if (!ANTHROPIC_API_KEY) {
-  throw new Error('Missing ANTHROPIC_API_KEY');
-}
-
-export const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
 export const MODEL = 'claude-sonnet-4-5';
 
+export interface GenerateJsonTool {
+  name: string;
+  description: string;
+  input_schema: {
+    type: 'object';
+    properties?: Record<string, unknown>;
+    required?: string[];
+    [k: string]: unknown;
+  };
+}
 
-export type GenerateJsonTool = Tool;
+// Lazy singleton so the API can boot without ANTHROPIC_API_KEY set — only
+// AI endpoints fail (with a clear 503) until the key is configured.
+let client: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (client) return client;
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new HttpError(503, 'AI features are disabled: ANTHROPIC_API_KEY is not configured');
+  }
+  client = new Anthropic({ apiKey: key });
+  return client;
+}
 
 // System prompt marked with ephemeral cache_control so callers that reuse the
 // same system block within 5 min pay cached input prices. Good for field-
@@ -39,11 +51,13 @@ export async function generateJson<T>({
   tool: GenerateJsonTool;
   maxTokens?: number;
 }): Promise<T> {
-  const res = await anthropic.messages.create({
+  const res = await getClient().messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     system: systemBlock(system),
-    tools: [tool],
+    // Our GenerateJsonTool is structurally compatible with the SDK's Tool type;
+    // the SDK's types pull in a huge union we don't need to pay the cost of.
+    tools: [tool] as unknown as Anthropic.Messages.MessageCreateParams['tools'],
     tool_choice: { type: 'tool', name: tool.name },
     messages: [{ role: 'user', content: user }],
   });
@@ -64,7 +78,7 @@ export async function generateText({
   user: string;
   maxTokens?: number;
 }): Promise<string> {
-  const res = await anthropic.messages.create({
+  const res = await getClient().messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     system: systemBlock(system),
