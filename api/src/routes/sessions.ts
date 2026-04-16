@@ -136,6 +136,16 @@ async function linkNpc(req: Request, res: Response): Promise<void> {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
 
+    // Verify the session belongs to this campaign.
+    const { data: sessionExistsNpc, error: sessionCheckNpcError } = await supabaseService
+      .from('sessions')
+      .select('id')
+      .eq('id', id)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+    if (sessionCheckNpcError) throw new HttpError(500, 'database error');
+    if (!sessionExistsNpc) throw new NotFoundError();
+
     // Verify the NPC belongs to this campaign to prevent cross-campaign link tampering.
     const { data: npcExists, error: npcCheckError } = await supabaseService
       .from('npcs')
@@ -200,6 +210,16 @@ async function linkLocation(req: Request, res: Response): Promise<void> {
     if (!parsed.success) {
       throw new ValidationError('invalid body', parsed.error.flatten());
     }
+
+    // Verify the session belongs to this campaign.
+    const { data: sessionExistsLoc, error: sessionCheckLocError } = await supabaseService
+      .from('sessions')
+      .select('id')
+      .eq('id', id)
+      .eq('campaign_id', campaignId)
+      .maybeSingle();
+    if (sessionCheckLocError) throw new HttpError(500, 'database error');
+    if (!sessionExistsLoc) throw new NotFoundError();
 
     // Verify the location belongs to this campaign to prevent cross-campaign link tampering.
     const { data: locExists, error: locCheckError } = await supabaseService
