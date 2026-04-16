@@ -55,17 +55,6 @@ export default function CharacterList() {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="p-8 flex items-center gap-2 text-slate-400">
-        <Spinner size="sm" /> Loading…
-      </div>
-    );
-  }
-  if (error) {
-    return <div className="p-8"><ErrorDisplay message="Failed to load characters." /></div>;
-  }
-
   const characters = data?.characters ?? [];
 
   return (
@@ -78,6 +67,16 @@ export default function CharacterList() {
           </Button>
         )}
       </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-slate-400">
+          <Spinner size="sm" /> Loading…
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <ErrorDisplay message="Failed to load characters." />
+      )}
 
       {creating && (
         <form
@@ -120,12 +119,14 @@ export default function CharacterList() {
         </form>
       )}
 
-      {characters.length === 0 ? (
+      {!isLoading && !error && characters.length === 0 && (
         <EmptyState
           title="No characters yet"
           description={isDm ? 'Create a character to track a PC.' : 'The DM has not added any characters.'}
         />
-      ) : (
+      )}
+
+      {!isLoading && !error && characters.length > 0 && (
         <ul className="space-y-2">
           {characters.map((c) => (
             <li
