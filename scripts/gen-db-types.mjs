@@ -47,6 +47,7 @@ function pgTypeToTs(dataType) {
     case 'real':
     case 'float4':
     case 'float8':
+    case 'double':
     case 'double precision':
       return 'number';
     case 'boolean':
@@ -206,18 +207,27 @@ function extractCreateTableSql(sql) {
 // ---------------------------------------------------------------------------
 
 function applyAlterTableAddColumns(allSql, tableRegistry) {
-  // Matches: alter table <name> add column [if not exists] <colname> <pgtype>;
+  // Matches: alter table <name> add column [if not exists] <colname> <type+constraints>;
+  // Uses [^;]+ to capture multi-word types like "double precision".
   const pattern =
-    /alter\s+table\s+(\w+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(\w+)\s+([\w]+)\s*;/gi;
+    /alter\s+table\s+(\w+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(\w+)\s+([^;]+);/gi;
 
   let match;
   while ((match = pattern.exec(allSql)) !== null) {
-    const [, tableName, colName, pgTypeName] = match;
+    const [, tableName, colName, typeAndConstraints] = match;
     const tableData = tableRegistry.get(tableName);
     if (!tableData) continue;
 
     // Skip if column already present (idempotent)
     if (tableData.columnEntries.some((c) => c.colName === colName)) continue;
+
+    // Strip trailing constraint keywords (NOT NULL, DEFAULT, REFERENCES, etc.)
+    // to isolate the bare data type, then normalise whitespace.
+    const pgTypeName = typeAndConstraints
+      .trim()
+      .replace(/\s+(not\s+null|null|default|references|check|unique|primary\s+key)\b.*/i, '')
+      .trim()
+      .toLowerCase();
 
     const baseType = pgTypeToTs({ name: pgTypeName, kind: 'simple' });
     tableData.columnEntries.push({
