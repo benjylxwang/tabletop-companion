@@ -224,10 +224,27 @@ export type Location = z.infer<typeof Location>;
 export const LocationPlayer = Location.omit({ dm_notes: true });
 export type LocationPlayer = z.infer<typeof LocationPlayer>;
 
-export const LocationCreate = Location.omit({ id: true, created_at: true });
+// campaign_id is omitted — the URL supplies it, and the server won't trust a
+// client-sent value for placement.
+export const LocationCreate = Location.omit({
+  id: true,
+  created_at: true,
+  campaign_id: true,
+});
 export type LocationCreate = z.infer<typeof LocationCreate>;
 
-export const LocationUpdate = LocationCreate.partial();
+// Optional fields use `.nullish()` so a client can send `null` to explicitly
+// clear a field (PATCH-style partial updates drop `undefined`, so `null` is
+// the only way to tell the server "set this column to NULL").
+export const LocationUpdate = z.object({
+  name: z.string().optional(),
+  type: z.string().nullish(),
+  description: z.string().nullish(),
+  history: z.string().nullish(),
+  map_image_url: z.string().nullish(),
+  parent_location_id: z.string().nullish(),
+  dm_notes: z.string().nullish(),
+});
 export type LocationUpdate = z.infer<typeof LocationUpdate>;
 
 export const LocationsResponse = z.object({ locations: z.array(Location) });

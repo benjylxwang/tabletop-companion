@@ -6,6 +6,7 @@ import { viewModeMiddleware } from './middleware/viewMode.js';
 import { healthRouter } from './routes/health.js';
 import { configRouter } from './routes/config.js';
 import { campaignsRouter } from './routes/campaigns.js';
+import { locationsRouter } from './routes/locations.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { meRouter } from './routes/me.js';
 
@@ -36,6 +37,7 @@ app.use(configRouter);
 
 app.use('/api', authMiddleware, meRouter);
 app.use('/api', authMiddleware, campaignsRouter);
+app.use('/api', authMiddleware, locationsRouter);
 app.use('/api', authMiddleware, sessionsRouter);
 
 const port = Number(process.env.PORT) || 3000;
