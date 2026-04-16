@@ -8,7 +8,7 @@ interface GenerateImageButtonProps {
   campaignId: string;
   entityType: GenerateImageEntityType;
   entityId: string;
-  fieldName: 'cover_image_url' | 'map_image_url' | 'portrait_url';
+  fieldName: 'cover_image_url' | 'map_image_url' | 'portrait_url' | 'world_map_url';
   promptHint?: string;
   onGenerated: (path: string) => void;
   disabled?: boolean;

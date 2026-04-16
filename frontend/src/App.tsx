@@ -23,6 +23,7 @@ import FactionDetail from './routes/factions/FactionDetail';
 import LoreList from './routes/lore/LoreList';
 import LoreDetail from './routes/lore/LoreDetail';
 import CampaignMembers from './routes/campaigns/CampaignMembers';
+import CampaignMap from './routes/map/CampaignMap';
 
 export function App() {
   return (
@@ -56,6 +57,7 @@ export function App() {
               <Route path="lore" element={<LoreList />} />
               <Route path="lore/:loreId" element={<LoreDetail />} />
               <Route path="members" element={<CampaignMembers />} />
+              <Route path="map" element={<CampaignMap />} />
             </Route>
           </Route>
         </Route>
