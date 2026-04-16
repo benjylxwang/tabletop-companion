@@ -9,6 +9,27 @@ export const HealthResponse = z.object({
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export const MeResponse = z.object({
+  user: z.object({
+    id: z.string(),
+    email: z.string().email().nullable(),
+  }),
+});
+export type MeResponse = z.infer<typeof MeResponse>;
+
+// Public runtime config the frontend needs before it can talk to Supabase Auth.
+// Served from the API so frontend Railway deploys don't need their own copy of
+// these secrets — the anon key is public anyway.
+export const ConfigResponse = z.object({
+  supabase: z.object({
+    url: z.string().url(),
+    anonKey: z.string().min(1),
+  }),
+});
+export type ConfigResponse = z.infer<typeof ConfigResponse>;
+
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 export const CampaignStatusEnum = z.enum(['Active', 'Hiatus', 'Complete']);

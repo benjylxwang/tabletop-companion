@@ -60,12 +60,18 @@ importers:
       '@playwright/test':
         specifier: ^1.48.0
         version: 1.59.1
+      '@supabase/supabase-js':
+        specifier: ^2.45.4
+        version: 2.103.1
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
 
   frontend:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.45.4
+        version: 2.103.1
       '@tabletop/shared':
         specifier: workspace:*
         version: link:../shared

@@ -10,6 +10,7 @@ import {
   EyeOff,
   Ghost,
   LayoutDashboard,
+  LogOut,
   MapPin,
   ScrollText,
   Shield,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { fetchCampaign } from '../lib/api';
 import { useViewMode } from '../contexts/ViewModeContext';
+import { useAuth } from '../lib/auth';
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
@@ -77,6 +79,7 @@ function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState<boolean>(loadCollapsed);
   const { viewMode, setViewMode } = useViewMode();
+  const { user, signOut } = useAuth();
 
   const campaignMatch = useMatch('/campaigns/:id/*') ?? useMatch('/campaigns/:id');
   const campaignId = campaignMatch?.params.id;
@@ -229,6 +232,27 @@ export default function Layout() {
             </div>
           </div>
         )}
+
+        {/* Account / sign out */}
+        <div className="border-t border-slate-800 px-2 py-2">
+          {!collapsed && user?.email && (
+            <p
+              className="mb-1 truncate px-2 text-[11px] text-slate-500"
+              title={user.email}
+            >
+              {user.email}
+            </p>
+          )}
+          <button
+            onClick={() => signOut()}
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          >
+            <LogOut size={iconSize} className="shrink-0" />
+            {!collapsed && <span>Sign out</span>}
+          </button>
+        </div>
 
         {/* Collapse toggle */}
         <div className="border-t border-slate-800 px-2 py-2">

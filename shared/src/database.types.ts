@@ -605,6 +605,35 @@ export type Database = {
           }
         ]
       }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          display_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          display_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          display_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: false
+            referencedRelation: "auth.users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
