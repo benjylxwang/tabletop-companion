@@ -49,7 +49,7 @@ export type CampaignCreate = z.infer<typeof CampaignCreate>;
 export const CampaignUpdate = CampaignCreate.partial();
 export type CampaignUpdate = z.infer<typeof CampaignUpdate>;
 
-export const CampaignWithRole = Campaign.extend({ my_role: RoleEnum });
+export const CampaignWithRole = CampaignPlayer.extend({ my_role: RoleEnum });
 export type CampaignWithRole = z.infer<typeof CampaignWithRole>;
 
 export const CampaignsResponse = z.object({ campaigns: z.array(CampaignWithRole) });
