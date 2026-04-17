@@ -91,10 +91,10 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-labelledby={titleId}
-        className={`relative w-full ${sizeClasses[size]} rounded-lg bg-parchment-50 shadow-modal`}
+        className={`relative w-full ${sizeClasses[size]} flex flex-col max-h-[calc(100vh-2rem)] rounded-lg bg-parchment-50 shadow-modal`}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-parchment-300 px-6 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-parchment-300 px-6 py-4">
           <div>
             <h2 id={titleId} className="font-display text-lg font-semibold text-ink-900">
               {title}
@@ -113,8 +113,8 @@ export function Modal({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5">{children}</div>
+        {/* Body — scrolls when content exceeds available height */}
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>,
     document.body,
