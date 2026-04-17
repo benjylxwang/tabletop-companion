@@ -28,12 +28,14 @@ test.describe('DM setup workflow (browser)', () => {
   // setup. We serialise them with test.serial so each step builds on the last.
   test.describe.configure({ mode: 'serial' });
 
+  // Unique name prevents strict-mode violations when CI re-runs accumulate campaigns.
+  const campaignName = `The Shattered Isles ${Date.now()}`;
   let campaignUrl: string; // e.g. /campaigns/:id
   let campaignId: string;
 
   // ── 1. Create campaign ───────────────────────────────────────────────────
 
-  test('1. DM creates campaign "The Shattered Isles"', async ({ page }) => {
+  test('1. DM creates a new campaign', async ({ page }) => {
     await page.goto('/campaigns');
     await expect(page.getByRole('heading', { name: 'Campaigns' })).toBeVisible();
 
@@ -42,7 +44,7 @@ test.describe('DM setup workflow (browser)', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Name').fill('The Shattered Isles');
+    await dialog.getByLabel('Name').fill(campaignName);
     await dialog.getByLabel('System').fill('D&D 5.5e');
     await dialog.getByRole('button', { name: /create/i }).click();
 
@@ -50,7 +52,7 @@ test.describe('DM setup workflow (browser)', () => {
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
     // The new campaign should appear in the list — click its link
-    const campaignLink = page.getByRole('link', { name: /The Shattered Isles/i });
+    const campaignLink = page.getByRole('link', { name: campaignName, exact: true });
     await expect(campaignLink).toBeVisible({ timeout: 10_000 });
 
     // Navigate to it and grab the URL so subsequent tests can use it
@@ -61,7 +63,7 @@ test.describe('DM setup workflow (browser)', () => {
     expect(campaignId).toBeTruthy();
 
     // Verify overview page loaded
-    await expect(page.getByText('The Shattered Isles')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(campaignName)).toBeVisible({ timeout: 10_000 });
   });
 
   // ── 2. Create characters ─────────────────────────────────────────────────
@@ -303,7 +305,7 @@ test.describe('DM setup workflow (browser)', () => {
     page,
   }) => {
     await page.goto(campaignUrl);
-    await expect(page.getByText('The Shattered Isles')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(campaignName)).toBeVisible({ timeout: 10_000 });
 
     // The DM/Player toggle is inside the sidebar with aria-label "View mode toggle"
     const viewModeGroup = page.getByRole('group', { name: 'View mode toggle' });
