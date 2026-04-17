@@ -95,17 +95,22 @@ function CreateLoreModal({
       await queryClient.cancelQueries({ queryKey: ['lores', campaignId] });
       const previous = queryClient.getQueryData<LoreListResponse>(['lores', campaignId, viewMode]);
       if (previous) {
-        queryClient.setQueryData<LoreListResponse>(['lores', campaignId, viewMode], {
-          ...previous,
-          lore: [
-            ...previous.lore,
-            {
-              ...draft,
-              id: crypto.randomUUID(),
-              created_at: new Date().toISOString(),
-            },
-          ],
-        });
+        // Don't inject Private entries into the player-view cache — they are server-filtered
+        const shouldAdd = viewMode !== 'player' || draft.visibility !== 'Private';
+        if (shouldAdd) {
+          queryClient.setQueryData<LoreListResponse>(['lores', campaignId, viewMode], {
+            ...previous,
+            lore: [
+              ...previous.lore,
+              {
+                ...draft,
+                id: crypto.randomUUID(),
+                campaign_id: campaignId,
+                created_at: new Date().toISOString(),
+              },
+            ],
+          });
+        }
       }
       return { previous };
     },
@@ -275,7 +280,9 @@ export default function LoreList() {
       {isLoading && (
         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            <li key={i}>
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </li>
           ))}
         </ul>
       )}

@@ -49,7 +49,8 @@ function CreateSessionModal({
             ...previous.sessions,
             {
               ...draft,
-              id: crypto.randomUUID(),
+              id: `__temp__${crypto.randomUUID()}`,
+              campaign_id: campaignId,
               created_at: new Date().toISOString(),
             },
           ],
@@ -223,7 +224,9 @@ export default function SessionList() {
       {isLoading && (
         <ul className="space-y-2 max-w-3xl">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            <li key={i}>
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </li>
           ))}
         </ul>
       )}
@@ -243,12 +246,12 @@ export default function SessionList() {
 
       {data && data.sessions.length > 0 && (
         <ul className="space-y-2 max-w-3xl">
-          {data.sessions.map((s) => (
-            <li key={s.id}>
-              <Link
-                to={`/campaigns/${campaignId}/sessions/${s.id}`}
-                className="flex items-center gap-4 rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
+          {data.sessions.map((s) => {
+            const isTemp = s.id.startsWith('__temp__');
+            const cardClass =
+              'flex items-center gap-4 rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 transition-colors';
+            const inner = (
+              <>
                 <span className="shrink-0 w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-amber-400">
                   #{s.session_number}
                 </span>
@@ -261,9 +264,23 @@ export default function SessionList() {
                     {s.summary}
                   </p>
                 )}
-              </Link>
-            </li>
-          ))}
+              </>
+            );
+            return (
+              <li key={s.id}>
+                {isTemp ? (
+                  <div className={`${cardClass} opacity-60`}>{inner}</div>
+                ) : (
+                  <Link
+                    to={`/campaigns/${campaignId}/sessions/${s.id}`}
+                    className={`${cardClass} hover:border-amber-500/50 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
+                  >
+                    {inner}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

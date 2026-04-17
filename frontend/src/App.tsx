@@ -75,28 +75,27 @@ export function App() {
 
         {/* Authenticated app */}
         <Route element={<RequireAuth />}>
-          <Route element={<Layout />}>
-            <Suspense fallback={<PageSkeleton />}>
-              <Route index element={<Navigate to="/campaigns" replace />} />
-              <Route path="campaigns" element={<CampaignList />} />
-              <Route path="campaigns/:id" element={<CampaignLayout />}>
-                <Route index element={<CampaignDetail />} />
-                <Route path="sessions" element={<SessionList />} />
-                <Route path="sessions/:sessionId" element={<SessionDetail />} />
-                <Route path="characters" element={<CharacterList />} />
-                <Route path="characters/:charId" element={<CharacterDetail />} />
-                <Route path="npcs" element={<NpcList />} />
-                <Route path="npcs/:npcId" element={<NpcDetail />} />
-                <Route path="locations" element={<LocationList />} />
-                <Route path="locations/:locationId" element={<LocationDetail />} />
-                <Route path="factions" element={<FactionList />} />
-                <Route path="factions/:factionId" element={<FactionDetail />} />
-                <Route path="lore" element={<LoreList />} />
-                <Route path="lore/:loreId" element={<LoreDetail />} />
-                <Route path="members" element={<CampaignMembers />} />
-                <Route path="map" element={<CampaignMap />} />
-              </Route>
-            </Suspense>
+          {/* Suspense wraps the Layout outlet so all lazy routes get the skeleton */}
+          <Route element={<Suspense fallback={<PageSkeleton />}><Layout /></Suspense>}>
+            <Route index element={<Navigate to="/campaigns" replace />} />
+            <Route path="campaigns" element={<CampaignList />} />
+            <Route path="campaigns/:id" element={<CampaignLayout />}>
+              <Route index element={<CampaignDetail />} />
+              <Route path="sessions" element={<SessionList />} />
+              <Route path="sessions/:sessionId" element={<SessionDetail />} />
+              <Route path="characters" element={<CharacterList />} />
+              <Route path="characters/:charId" element={<CharacterDetail />} />
+              <Route path="npcs" element={<NpcList />} />
+              <Route path="npcs/:npcId" element={<NpcDetail />} />
+              <Route path="locations" element={<LocationList />} />
+              <Route path="locations/:locationId" element={<LocationDetail />} />
+              <Route path="factions" element={<FactionList />} />
+              <Route path="factions/:factionId" element={<FactionDetail />} />
+              <Route path="lore" element={<LoreList />} />
+              <Route path="lore/:loreId" element={<LoreDetail />} />
+              <Route path="members" element={<CampaignMembers />} />
+              <Route path="map" element={<CampaignMap />} />
+            </Route>
           </Route>
         </Route>
       </Routes>

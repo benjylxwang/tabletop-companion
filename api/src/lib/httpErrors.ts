@@ -82,7 +82,11 @@ export function errorMiddleware(
   err: unknown,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ): void {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
   sendError(res, err);
 }

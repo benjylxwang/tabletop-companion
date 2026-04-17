@@ -21,7 +21,8 @@ export function validateQuery(schema: ZodTypeAny) {
       next(new ValidationError('invalid query', result.error.flatten()));
       return;
     }
-    req.query = result.data as Record<string, string>;
+    // req.query is a getter in Express 4 — mutate in place instead of reassigning
+    Object.assign(req.query, result.data);
     next();
   };
 }
