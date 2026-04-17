@@ -113,8 +113,8 @@ export function Modal({
           </button>
         </div>
 
-        {/* Body — scrolls when content exceeds available height */}
-        <div className="overflow-y-auto px-6 py-5">{children}</div>
+        {/* Body — flex-1 min-h-0 lets the flex layout constrain this div so overflow-y-auto engages */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>,
     document.body,
