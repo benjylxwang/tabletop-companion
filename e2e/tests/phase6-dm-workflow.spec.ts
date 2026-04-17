@@ -219,7 +219,7 @@ test.describe('DM setup workflow (browser)', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Title').fill('The Voyage Begins');
+    await dialog.getByLabel('Title', { exact: true }).fill('The Voyage Begins');
     await dialog.getByLabel('Session Number').fill('1');
     await dialog.getByLabel('Date Played').fill('2026-04-16');
 
@@ -245,7 +245,7 @@ test.describe('DM setup workflow (browser)', () => {
     let dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Title').fill('History of the Shattered Isles');
+    await dialog.getByLabel('Title', { exact: true }).fill('History of the Shattered Isles');
 
     // Visibility is "Public" by default — leave it
     await dialog.getByRole('button', { name: /create entry/i }).click();
@@ -259,7 +259,7 @@ test.describe('DM setup workflow (browser)', () => {
     dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Title').fill('DM Eyes Only — The True Villain');
+    await dialog.getByLabel('Title', { exact: true }).fill('DM Eyes Only — The True Villain');
 
     // Change visibility to Private
     const visibilitySelect = dialog.getByLabel('Visibility');
