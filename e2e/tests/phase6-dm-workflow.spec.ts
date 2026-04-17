@@ -52,7 +52,7 @@ test.describe('DM setup workflow (browser)', () => {
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
     // The new campaign should appear in the list — click its link
-    const campaignLink = page.getByRole('link', { name: campaignName, exact: true });
+    const campaignLink = page.getByRole('link', { name: campaignName });
     await expect(campaignLink).toBeVisible({ timeout: 10_000 });
 
     // Navigate to it and grab the URL so subsequent tests can use it
