@@ -24,6 +24,9 @@ import { test, expect } from '@playwright/test';
 // ── Test suite ────────────────────────────────────────────────────────────────
 
 test.describe('DM setup workflow (browser)', () => {
+  // Serial mode: all tests share one worker so campaignUrl is visible to every test.
+  test.describe.configure({ mode: 'serial' });
+
   // Unique name prevents strict-mode violations when CI re-runs accumulate campaigns.
   const campaignName = `The Shattered Isles ${Date.now()}`;
   let campaignUrl: string; // e.g. /campaigns/:id
