@@ -219,9 +219,14 @@ test.describe('DM setup workflow (browser)', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByRole('textbox', { name: /^title/i }).fill('The Voyage Begins');
-    await dialog.getByLabel('Session Number').fill('1');
-    await dialog.getByLabel('Date Played').fill('2026-04-16');
+    // Use id-based locators for reliability; toHaveValue acts as a sync barrier
+    // so React commits state before handleSubmit reads it.
+    const titleInput = page.locator('#session-title');
+    await titleInput.fill('The Voyage Begins');
+    await expect(titleInput).toHaveValue('The Voyage Begins');
+
+    await page.locator('#session-number').fill('1');
+    await page.locator('#session-date').fill('2026-04-16');
 
     // DM notes (only visible in DM view)
     const dmNotes = dialog.getByLabel('DM Notes');
@@ -229,11 +234,7 @@ test.describe('DM setup workflow (browser)', () => {
       await dmNotes.fill('Players took the bait — they will sail for Crescent Isle next session.');
     }
 
-    // scrollIntoViewIfNeeded ensures the button is visible before clicking so React
-    // state (title, sessionNumber, datePlayed) is fully flushed before submission
-    const sessionSubmit = dialog.getByRole('button', { name: /create session/i });
-    await sessionSubmit.scrollIntoViewIfNeeded();
-    await sessionSubmit.click();
+    await dialog.getByRole('button', { name: /create session/i }).click();
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('The Voyage Begins')).toBeVisible({ timeout: 10_000 });
   });
