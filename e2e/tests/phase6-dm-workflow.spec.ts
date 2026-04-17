@@ -24,10 +24,6 @@ import { test, expect } from '@playwright/test';
 // ── Test suite ────────────────────────────────────────────────────────────────
 
 test.describe('DM setup workflow (browser)', () => {
-  // All tests share a single browser context + campaign to avoid repeating
-  // setup. We serialise them with test.serial so each step builds on the last.
-  test.describe.configure({ mode: 'serial' });
-
   // Unique name prevents strict-mode violations when CI re-runs accumulate campaigns.
   const campaignName = `The Shattered Isles ${Date.now()}`;
   let campaignUrl: string; // e.g. /campaigns/:id
@@ -230,7 +226,11 @@ test.describe('DM setup workflow (browser)', () => {
       await dmNotes.fill('Players took the bait — they will sail for Crescent Isle next session.');
     }
 
-    await dialog.getByRole('button', { name: /create session/i }).dispatchEvent('click');
+    // scrollIntoViewIfNeeded ensures the button is visible before clicking so React
+    // state (title, sessionNumber, datePlayed) is fully flushed before submission
+    const sessionSubmit = dialog.getByRole('button', { name: /create session/i });
+    await sessionSubmit.scrollIntoViewIfNeeded();
+    await sessionSubmit.click();
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('The Voyage Begins')).toBeVisible({ timeout: 10_000 });
   });
