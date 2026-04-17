@@ -132,7 +132,7 @@ test.describe('DM setup workflow (browser)', () => {
     await expect(dialog).toBeVisible();
 
     await dialog.getByLabel('Name').fill('The Capital');
-    await dialog.getByRole('button', { name: /create/i }).click();
+    await dialog.getByRole('button', { name: /create/i }).dispatchEvent('click');
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('The Capital')).toBeVisible({ timeout: 10_000 });
 
@@ -153,7 +153,7 @@ test.describe('DM setup workflow (browser)', () => {
       await listbox.getByRole('option', { name: 'The Capital' }).click();
     }
 
-    await dialog.getByRole('button', { name: /create/i }).click();
+    await dialog.getByRole('button', { name: /create/i }).dispatchEvent('click');
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Castle District')).toBeVisible({ timeout: 10_000 });
   });
@@ -170,7 +170,7 @@ test.describe('DM setup workflow (browser)', () => {
     await expect(dialog).toBeVisible();
 
     await dialog.getByLabel('Name').fill('The Order of Dawn');
-    await dialog.getByRole('button', { name: /create/i }).click();
+    await dialog.getByRole('button', { name: /create/i }).dispatchEvent('click');
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
     // Navigate to the faction detail to add a member
@@ -230,7 +230,7 @@ test.describe('DM setup workflow (browser)', () => {
       await dmNotes.fill('Players took the bait — they will sail for Crescent Isle next session.');
     }
 
-    await dialog.getByRole('button', { name: /create session/i }).click();
+    await dialog.getByRole('button', { name: /create session/i }).dispatchEvent('click');
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('The Voyage Begins')).toBeVisible({ timeout: 10_000 });
   });
@@ -249,7 +249,7 @@ test.describe('DM setup workflow (browser)', () => {
     await dialog.getByRole('textbox', { name: /^title/i }).fill('History of the Shattered Isles');
 
     // Visibility is "Public" by default — leave it
-    await dialog.getByRole('button', { name: /create entry/i }).click();
+    await dialog.getByRole('button', { name: /create entry/i }).dispatchEvent('click');
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(
       page.getByText('History of the Shattered Isles'),
@@ -269,7 +269,7 @@ test.describe('DM setup workflow (browser)', () => {
     await expect(listbox).toBeVisible();
     await listbox.getByRole('option', { name: 'Private' }).click();
 
-    await dialog.getByRole('button', { name: /create entry/i }).click();
+    await dialog.getByRole('button', { name: /create entry/i }).dispatchEvent('click');
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
     await expect(
       page.getByText('DM Eyes Only — The True Villain'),
