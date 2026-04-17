@@ -164,7 +164,7 @@ test.describe('DM setup workflow (browser)', () => {
     await expect(page.getByRole('heading', { name: 'Factions' })).toBeVisible();
 
     // Create the faction
-    await page.getByRole('button', { name: /new faction/i }).click();
+    await page.getByRole('button', { name: /new faction/i }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
@@ -215,11 +215,11 @@ test.describe('DM setup workflow (browser)', () => {
     await page.goto(`${campaignUrl}/sessions`);
     await expect(page.getByRole('heading', { name: 'Sessions' })).toBeVisible();
 
-    await page.getByRole('button', { name: /new session/i }).click();
+    await page.getByRole('button', { name: /new session/i }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Title', { exact: true }).fill('The Voyage Begins');
+    await dialog.getByRole('textbox', { name: /^title/i }).fill('The Voyage Begins');
     await dialog.getByLabel('Session Number').fill('1');
     await dialog.getByLabel('Date Played').fill('2026-04-16');
 
@@ -245,7 +245,7 @@ test.describe('DM setup workflow (browser)', () => {
     let dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Title', { exact: true }).fill('History of the Shattered Isles');
+    await dialog.getByRole('textbox', { name: /^title/i }).fill('History of the Shattered Isles');
 
     // Visibility is "Public" by default — leave it
     await dialog.getByRole('button', { name: /create entry/i }).click();
@@ -259,7 +259,7 @@ test.describe('DM setup workflow (browser)', () => {
     dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Title', { exact: true }).fill('DM Eyes Only — The True Villain');
+    await dialog.getByRole('textbox', { name: /^title/i }).fill('DM Eyes Only — The True Villain');
 
     // Change visibility to Private
     const visibilitySelect = dialog.getByLabel('Visibility');
