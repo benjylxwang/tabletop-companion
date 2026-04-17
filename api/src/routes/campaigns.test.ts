@@ -6,10 +6,12 @@ import type { User } from '@supabase/supabase-js';
 
 const mockFrom = vi.fn();
 const mockGetUserByEmail = vi.fn();
+const mockSendSignupInvite = vi.fn();
 
 vi.mock('../lib/supabaseService.js', () => ({
   supabaseService: { from: (...args: unknown[]) => mockFrom(...args) },
   getUserByEmail: (...args: unknown[]) => mockGetUserByEmail(...args),
+  sendSignupInvite: (...args: unknown[]) => mockSendSignupInvite(...args),
 }));
 
 const mockGetCampaignRole = vi.fn();
@@ -33,6 +35,7 @@ function makeChain(directResult: DBResult, singleResult?: DBResult) {
   const self: Record<string, unknown> = {
     select: vi.fn(() => self),
     eq: vi.fn(() => self),
+    in: vi.fn(() => self),
     insert: vi.fn(() => self),
     update: vi.fn(() => self),
     delete: vi.fn(() => self),
@@ -418,6 +421,7 @@ describe('GET /campaigns/:id/members', () => {
     mockFrom.mockReset();
     mockGetCampaignRole.mockReset();
     mockGetUserByEmail.mockReset();
+    mockSendSignupInvite.mockReset();
   });
 
   it('returns member list for a member', async () => {
@@ -445,6 +449,16 @@ describe('GET /campaigns/:id/members', () => {
   });
 });
 
+const FAKE_INVITATION = {
+  id: 'inv-1',
+  campaign_id: 'camp-1',
+  invited_user_id: 'user-2',
+  invited_by_user_id: 'user-1',
+  status: 'pending',
+  created_at: '2026-01-01T00:00:00.000Z',
+  updated_at: '2026-01-01T00:00:00.000Z',
+} as const;
+
 describe('POST /campaigns/:id/members', () => {
   const handler = getHandler('post', '/campaigns/:id/members');
 
@@ -452,19 +466,40 @@ describe('POST /campaigns/:id/members', () => {
     mockFrom.mockReset();
     mockGetCampaignRole.mockReset();
     mockGetUserByEmail.mockReset();
+    mockSendSignupInvite.mockReset();
   });
 
-  it('adds a player member by email', async () => {
+  it('adds a player member by email (registered user)', async () => {
     mockGetCampaignRole.mockResolvedValue('dm');
     mockGetUserByEmail.mockResolvedValue({ id: 'user-2' });
     mockFrom
-      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null })) // check existing
-      .mockReturnValueOnce(makeChain({ data: null, error: null }, { // insert
-        data: { campaign_id: 'camp-1', user_id: 'user-2', role: 'player', joined_at: '2026-01-01T00:00:00.000Z' },
-        error: null,
-      }));
+      // 1. check existing membership → none
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null }))
+      // 2. check existing invitation → none
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null }))
+      // 3. insert invitation → returns invitation
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: FAKE_INVITATION, error: null }));
 
     const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'player@test.com' } });
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toHaveBeenCalledWith(201);
+  });
+
+  it('sends signup invite and creates invitation for unregistered email', async () => {
+    mockGetCampaignRole.mockResolvedValue('dm');
+    mockGetUserByEmail.mockResolvedValue(null);
+    mockSendSignupInvite.mockResolvedValue({ id: 'user-3' });
+    mockFrom
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null }))
+      .mockReturnValueOnce(makeChain({ data: null, error: null }, { data: null, error: null }))
+      .mockReturnValueOnce(makeChain(
+        { data: null, error: null },
+        { data: { ...FAKE_INVITATION, invited_user_id: 'user-3' }, error: null },
+      ));
+
+    const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'new@test.com' } });
     const res = makeRes();
     await handler(req, res);
 
@@ -491,15 +526,16 @@ describe('POST /campaigns/:id/members', () => {
     expect(res._status).toHaveBeenCalledWith(404);
   });
 
-  it('returns 404 when email does not match any user', async () => {
+  it('returns 500 when signup invite cannot be sent for unregistered email', async () => {
     mockGetCampaignRole.mockResolvedValue('dm');
     mockGetUserByEmail.mockResolvedValue(null);
+    mockSendSignupInvite.mockResolvedValue(null); // invite creation failed
 
     const req = makeReq({ params: { id: 'camp-1' }, body: { email: 'unknown@test.com' } });
     const res = makeRes();
     await handler(req, res);
 
-    expect(res._status).toHaveBeenCalledWith(404);
+    expect(res._status).toHaveBeenCalledWith(500);
   });
 
   it('returns 409 when user is already a member', async () => {
