@@ -113,7 +113,8 @@ test.describe('DM setup workflow (browser)', () => {
         await dmNotesField.fill(npc.dmNotes);
       }
 
-      await dialog.getByRole('button', { name: /create npc/i }).click();
+      // NPC form is tall — force:true bypasses the viewport check for the submit button
+      await dialog.getByRole('button', { name: /create npc/i }).click({ force: true });
       await expect(dialog).not.toBeVisible({ timeout: 10_000 });
       await expect(page.getByText(npc.name)).toBeVisible({ timeout: 10_000 });
     }
