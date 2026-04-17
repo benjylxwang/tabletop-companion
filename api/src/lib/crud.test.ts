@@ -212,6 +212,31 @@ describe('createCrudHandlers — list', () => {
     });
   });
 
+  it('uses player column list in SELECT when stripping (defense-in-depth)', async () => {
+    const { client, fooChain } = buildTableClient({
+      memberRole: 'player',
+      foo: { selectResult: { data: [ROW_DM], error: null } },
+    });
+    const handlers = makeHandlers(client);
+    const req = makeReq({ query: { campaign_id: CAMPAIGN_ID }, view: 'dm' } as Partial<Request> & { view: 'dm' });
+    const res = makeRes();
+    await handlers.list(req, res);
+    // The select call should NOT use '*' — it should be the non-dm_ columns only.
+    expect(fooChain.select).toHaveBeenCalledWith('id,campaign_id,name');
+  });
+
+  it('uses * in SELECT for DM in DM view', async () => {
+    const { client, fooChain } = buildTableClient({
+      memberRole: 'dm',
+      foo: { selectResult: { data: [ROW_DM], error: null } },
+    });
+    const handlers = makeHandlers(client);
+    const req = makeReq({ query: { campaign_id: CAMPAIGN_ID } } as Partial<Request>);
+    const res = makeRes();
+    await handlers.list(req, res);
+    expect(fooChain.select).toHaveBeenCalledWith('*');
+  });
+
   it('400s when campaign_id cannot be resolved', async () => {
     const { client } = buildTableClient({ memberRole: 'dm', foo: {} });
     const handlers = makeHandlers(client);
@@ -219,7 +244,9 @@ describe('createCrudHandlers — list', () => {
     const res = makeRes();
     await handlers.list(req, res);
     expect(res._status).toHaveBeenCalledWith(400);
-    expect(res._json).toHaveBeenCalledWith({ error: 'campaign_id required' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'VALIDATION_ERROR', message: 'campaign_id required' },
+    });
   });
 
   it('404s when the user has no membership on that campaign', async () => {
@@ -229,7 +256,9 @@ describe('createCrudHandlers — list', () => {
     const res = makeRes();
     await handlers.list(req, res);
     expect(res._status).toHaveBeenCalledWith(404);
-    expect(res._json).toHaveBeenCalledWith({ error: 'not found' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'NOT_FOUND', message: 'not found' },
+    });
   });
 });
 
@@ -347,9 +376,12 @@ describe('createCrudHandlers — create', () => {
     const res = makeRes();
     await handlers.create(req, res);
     expect(res._status).toHaveBeenCalledWith(400);
-    const body = res._json.mock.calls[0]?.[0] as { error: string; details: unknown };
-    expect(body.error).toBe('invalid body');
-    expect(body.details).toBeDefined();
+    const body = res._json.mock.calls[0]?.[0] as {
+      error: { code: string; message: string; details: unknown };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('invalid body');
+    expect(body.error.details).toBeDefined();
   });
 
   it('403s when the user is a player (not DM)', async () => {
@@ -361,7 +393,9 @@ describe('createCrudHandlers — create', () => {
     const res = makeRes();
     await handlers.create(req, res);
     expect(res._status).toHaveBeenCalledWith(403);
-    expect(res._json).toHaveBeenCalledWith({ error: 'forbidden' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'FORBIDDEN', message: 'forbidden' },
+    });
   });
 
   it('forces the authorized campaign_id onto the insert, ignoring any client-supplied value', async () => {

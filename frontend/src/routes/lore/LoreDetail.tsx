@@ -31,6 +31,13 @@ import type {
   LoreVisibilityEnum,
   LoreReferenceEntityTypeEnum,
   LoreRef,
+  LoreWithRefsResponse,
+  LoreListResponse,
+  NpcsResponse,
+  LocationsResponse,
+  FactionsResponse,
+  SessionsResponse,
+  CharactersResponse,
 } from '@tabletop/shared';
 import { CategoryBadge, VisibilityBadge } from './LoreList';
 
@@ -158,9 +165,57 @@ function ReferencesSection({
         entity_type: refEntityType,
         entity_id: refEntityId,
       }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['lore', campaignId, loreId, viewMode] });
+      const previous = queryClient.getQueryData<LoreWithRefsResponse>(['lore', campaignId, loreId, viewMode]);
+      if (previous) {
+        // Look up entity name from appropriate cache
+        let entityName = 'Unknown';
+        switch (refEntityType) {
+          case 'npc':
+            entityName = queryClient.getQueryData<NpcsResponse>(['npcs', campaignId, viewMode])?.npcs.find((e) => e.id === refEntityId)?.name ?? 'Unknown';
+            break;
+          case 'location':
+            entityName = queryClient.getQueryData<LocationsResponse>(['locations', campaignId, viewMode])?.locations.find((e) => e.id === refEntityId)?.name ?? 'Unknown';
+            break;
+          case 'faction':
+            entityName = queryClient.getQueryData<FactionsResponse>(['factions', campaignId, viewMode])?.factions.find((e) => e.id === refEntityId)?.name ?? 'Unknown';
+            break;
+          case 'session': {
+            const s = queryClient.getQueryData<SessionsResponse>(['sessions', campaignId, viewMode])?.sessions.find((e) => e.id === refEntityId);
+            entityName = s ? `Session ${s.session_number} — ${s.title}` : 'Unknown';
+            break;
+          }
+          case 'lore':
+            entityName = queryClient.getQueryData<LoreListResponse>(['lores', campaignId, viewMode])?.lore.find((e) => e.id === refEntityId)?.title ?? 'Unknown';
+            break;
+          case 'character':
+            entityName = queryClient.getQueryData<CharactersResponse>(['characters', campaignId, viewMode])?.characters.find((e) => e.id === refEntityId)?.name ?? 'Unknown';
+            break;
+        }
+        queryClient.setQueryData<LoreWithRefsResponse>(['lore', campaignId, loreId, viewMode], {
+          ...previous,
+          lore: {
+            ...previous.lore,
+            references: [
+              ...previous.lore.references,
+              { entity_type: refEntityType, entity_id: refEntityId, entity_name: entityName },
+            ],
+          },
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId, loreId] });
       setRefEntityId('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['lore', campaignId, loreId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId, loreId] });
     },
   });
 
@@ -172,7 +227,26 @@ function ReferencesSection({
       entityType: LoreReferenceEntityTypeEnum;
       entityId: string;
     }) => removeLoreReference(campaignId, loreId, entityType, entityId),
-    onSuccess: () => {
+    onMutate: async ({ entityId }) => {
+      await queryClient.cancelQueries({ queryKey: ['lore', campaignId, loreId, viewMode] });
+      const previous = queryClient.getQueryData<LoreWithRefsResponse>(['lore', campaignId, loreId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LoreWithRefsResponse>(['lore', campaignId, loreId, viewMode], {
+          ...previous,
+          lore: {
+            ...previous.lore,
+            references: previous.lore.references.filter((r) => r.entity_id !== entityId),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['lore', campaignId, loreId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['lore', campaignId, loreId] });
     },
   });
@@ -318,20 +392,61 @@ export default function LoreDetail() {
         visibility,
         dm_notes: dmNotes || undefined,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['lore', campaignId, loreId, viewMode], {
-        lore: { ...lore, ...updated.lore },
-      });
-      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['lore', campaignId, loreId, viewMode] });
+      const previous = queryClient.getQueryData<LoreWithRefsResponse>(['lore', campaignId, loreId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LoreWithRefsResponse>(['lore', campaignId, loreId, viewMode], {
+          ...previous,
+          lore: {
+            ...previous.lore,
+            title,
+            category,
+            content: content || undefined,
+            visibility,
+            dm_notes: dmNotes || undefined,
+          },
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['lore', campaignId, loreId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lore', campaignId, loreId] });
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteLore(campaignId!, loreId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['lores', campaignId] });
+      const previous = queryClient.getQueryData<LoreListResponse>(['lores', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LoreListResponse>(['lores', campaignId, viewMode], {
+          ...previous,
+          lore: previous.lore.filter((l) => l.id !== loreId),
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
       navigate(`/campaigns/${campaignId}/lore`);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['lores', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
     },
   });
 

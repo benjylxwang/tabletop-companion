@@ -8,6 +8,7 @@ import {
   updateCharacter,
   uploadFile,
 } from '../../lib/api';
+import type { CharacterResponse, CharactersResponse } from '@tabletop/shared';
 import { useSignedUrl } from '../../lib/useSignedUrl';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import {
@@ -69,18 +70,59 @@ export default function CharacterDetail() {
         character_sheet_url: sheetPath,
         portrait_url: portraitPath,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['character', campaignId, charId, viewMode], updated);
-      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['character', campaignId, charId, viewMode] });
+      const previous = queryClient.getQueryData<CharacterResponse>(['character', campaignId, charId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<CharacterResponse>(['character', campaignId, charId, viewMode], {
+          ...previous,
+          character: {
+            ...previous.character,
+            name,
+            character_sheet_url: sheetPath,
+            portrait_url: portraitPath,
+          },
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['character', campaignId, charId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['character', campaignId, charId] });
+      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteCharacter(campaignId!, charId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['characters', campaignId] });
+      const previous = queryClient.getQueryData<CharactersResponse>(['characters', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<CharactersResponse>(['characters', campaignId, viewMode], {
+          ...previous,
+          characters: previous.characters.filter((c) => c.id !== charId),
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
       navigate(`/campaigns/${campaignId}/characters`);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['characters', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
     },
   });
 

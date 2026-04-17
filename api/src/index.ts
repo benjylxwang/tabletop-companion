@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import './lib/supabase.js';
 import { authMiddleware } from './middleware/auth.js';
 import { viewModeMiddleware } from './middleware/viewMode.js';
+import { errorMiddleware } from './lib/httpErrors.js';
 import { healthRouter } from './routes/health.js';
 import { configRouter } from './routes/config.js';
 import { aiRouter } from './routes/ai.js';
@@ -20,6 +22,7 @@ import { ensureUploadsBucket } from './lib/uploadsBucket.js';
 
 const app = express();
 
+app.use(compression());
 app.use(
   cors({
     origin: (origin, cb) => {
@@ -54,6 +57,8 @@ app.use('/api', authMiddleware, npcsRouter);
 app.use('/api', authMiddleware, sessionsRouter);
 app.use('/api/ai', authMiddleware, aiRouter);
 app.use('/api/uploads', authMiddleware, uploadsRouter);
+
+app.use(errorMiddleware);
 
 const port = Number(process.env.PORT) || 3000;
 const server = app.listen(port, async () => {

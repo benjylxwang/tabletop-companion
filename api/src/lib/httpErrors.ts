@@ -1,4 +1,4 @@
-import type { Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 
 export class HttpError extends Error {
@@ -33,19 +33,60 @@ export class ForbiddenError extends HttpError {
   }
 }
 
-type ErrorBody = { error: string; details?: unknown };
+type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'FORBIDDEN' | 'INTERNAL_ERROR' | 'HTTP_ERROR';
+
+type ErrorBody = {
+  error: {
+    code: ErrorCode;
+    message: string;
+    details?: unknown;
+  };
+};
+
+function resolveCode(err: HttpError): ErrorCode {
+  if (err instanceof ValidationError) return 'VALIDATION_ERROR';
+  if (err instanceof NotFoundError) return 'NOT_FOUND';
+  if (err instanceof ForbiddenError) return 'FORBIDDEN';
+  if (err.status >= 500) return 'INTERNAL_ERROR';
+  return 'HTTP_ERROR';
+}
 
 export function sendError(res: Response, err: unknown): void {
   if (err instanceof HttpError) {
-    const body: ErrorBody = { error: err.message };
-    if (err.details !== undefined) body.details = err.details;
+    const body: ErrorBody = {
+      error: {
+        code: resolveCode(err),
+        message: err.message,
+      },
+    };
+    if (err.details !== undefined) body.error.details = err.details;
     res.status(err.status).json(body);
     return;
   }
   if (err instanceof ZodError) {
-    res.status(400).json({ error: 'invalid request', details: err.flatten() });
+    const body: ErrorBody = {
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'invalid request',
+        details: err.flatten(),
+      },
+    };
+    res.status(400).json(body);
     return;
   }
   console.error('unhandled error in request handler:', err);
-  res.status(500).json({ error: 'internal' });
+  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'internal' } });
+}
+
+export function errorMiddleware(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  sendError(res, err);
 }

@@ -38,6 +38,13 @@ import type {
   LoreCategoryEnum,
   LoreVisibilityEnum,
   Location,
+  CampaignResponse,
+  SessionsResponse,
+  CharactersResponse,
+  NpcsResponse,
+  LocationsResponse,
+  FactionsResponse,
+  LoreListResponse,
 } from '@tabletop/shared';
 
 const STATUS_OPTIONS: { value: CampaignStatusEnum; label: string }[] = [
@@ -82,6 +89,7 @@ function CreateSessionModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
   const [sessionNumber, setSessionNumber] = useState('');
   const [title, setTitle] = useState('');
   const [datePlayed, setDatePlayed] = useState(todayIso);
@@ -94,13 +102,41 @@ function CreateSessionModal({
         title,
         date_played: datePlayed,
       }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['sessions', campaignId] });
+      const previous = queryClient.getQueryData<SessionsResponse>(['sessions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<SessionsResponse>(['sessions', campaignId, viewMode], {
+          ...previous,
+          sessions: [
+            ...previous.sessions,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              session_number: parseInt(sessionNumber, 10),
+              title,
+              date_played: datePlayed,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
-      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
       onClose();
       setSessionNumber('');
       setTitle('');
       setDatePlayed(todayIso());
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['sessions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
     },
   });
 
@@ -162,6 +198,7 @@ function CreateCharacterModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
   const [name, setName] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [charClass, setCharClass] = useState('');
@@ -176,11 +213,40 @@ function CreateCharacterModal({
         class: charClass || undefined,
         level_tier: level ? parseInt(level, 10) : undefined,
       }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['characters', campaignId] });
+      const previous = queryClient.getQueryData<CharactersResponse>(['characters', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<CharactersResponse>(['characters', campaignId, viewMode], {
+          ...previous,
+          characters: [
+            ...previous.characters,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              name,
+              player_name: playerName || undefined,
+              class: charClass || undefined,
+              level_tier: level ? parseInt(level, 10) : undefined,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
-      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
       onClose();
       setName(''); setPlayerName(''); setCharClass(''); setLevel('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['characters', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
     },
   });
 
@@ -226,6 +292,7 @@ function CreateNpcModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
   const [name, setName] = useState('');
   const [roleTitle, setRoleTitle] = useState('');
   const [status, setStatus] = useState<NpcStatusEnum>('Alive');
@@ -233,11 +300,39 @@ function CreateNpcModal({
   const mutation = useMutation({
     mutationFn: () =>
       createNpc(campaignId, { name, role_title: roleTitle || undefined, status }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['npcs', campaignId] });
+      const previous = queryClient.getQueryData<NpcsResponse>(['npcs', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<NpcsResponse>(['npcs', campaignId, viewMode], {
+          ...previous,
+          npcs: [
+            ...previous.npcs,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              name,
+              role_title: roleTitle || undefined,
+              status,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
-      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
       onClose();
       setName(''); setRoleTitle(''); setStatus('Alive');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['npcs', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['npcs', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
     },
   });
 
@@ -278,17 +373,45 @@ function CreateLocationModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
   const [name, setName] = useState('');
   const [type, setType] = useState('');
 
   const mutation = useMutation({
     mutationFn: () =>
       createLocation(campaignId, { name, type: type || undefined }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['locations', campaignId] });
+      const previous = queryClient.getQueryData<LocationsResponse>(['locations', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LocationsResponse>(['locations', campaignId, viewMode], {
+          ...previous,
+          locations: [
+            ...previous.locations,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              name,
+              type: type || undefined,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
-      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
       onClose();
       setName(''); setType('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['locations', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
     },
   });
 
@@ -326,16 +449,43 @@ function CreateFactionModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
   const [name, setName] = useState('');
 
   const mutation = useMutation({
     mutationFn: () =>
       createFaction(campaignId, { campaign_id: campaignId, name }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['factions', campaignId] });
+      const previous = queryClient.getQueryData<FactionsResponse>(['factions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<FactionsResponse>(['factions', campaignId, viewMode], {
+          ...previous,
+          factions: [
+            ...previous.factions,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              name,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
-      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
       onClose();
       setName('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['factions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['factions', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
     },
   });
 
@@ -370,6 +520,7 @@ function CreateLoreModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { viewMode } = useViewMode();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<LoreCategoryEnum>('History');
   const [visibility, setVisibility] = useState<LoreVisibilityEnum>('Public');
@@ -377,11 +528,39 @@ function CreateLoreModal({
   const mutation = useMutation({
     mutationFn: () =>
       createLore(campaignId, { campaign_id: campaignId, title, category, visibility }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['lores', campaignId] });
+      const previous = queryClient.getQueryData<LoreListResponse>(['lores', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LoreListResponse>(['lores', campaignId, viewMode], {
+          ...previous,
+          lore: [
+            ...previous.lore,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              title,
+              category,
+              visibility,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
-      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
       onClose();
       setTitle(''); setCategory('History'); setVisibility('Public');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['lores', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lores', campaignId] });
+      void queryClient.invalidateQueries({ queryKey: ['campaign-overview', campaignId] });
     },
   });
 
@@ -629,10 +808,36 @@ export default function CampaignDetail() {
         cover_image_url: coverPath,
         dm_notes: dmNotes || undefined,
       }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['campaign', id, viewMode], updated);
-      void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['campaign', id, viewMode] });
+      const previous = queryClient.getQueryData<CampaignResponse>(['campaign', id, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<CampaignResponse>(['campaign', id, viewMode], {
+          ...previous,
+          campaign: {
+            ...previous.campaign,
+            name,
+            system: system || undefined,
+            description: description || undefined,
+            status,
+            cover_image_url: coverPath ?? undefined,
+            dm_notes: dmNotes || undefined,
+          },
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['campaign', id, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['campaign', id] });
+      void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
     },
   });
 

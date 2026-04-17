@@ -12,10 +12,11 @@ import {
   EmptyState,
   ErrorDisplay,
   FormField,
-  Spinner,
   TextInput,
 } from '../../components';
 import { EntityAvatar } from '../../components/ui/EntityAvatar';
+import { Skeleton } from '../../components/ui/Skeleton';
+import type { CharactersResponse } from '@tabletop/shared';
 
 // Minimal list to support Phase 3 character-sheet uploads. Fuller character
 // management (race, class, appearance, etc.) belongs in the Phase 2 Characters
@@ -49,10 +50,36 @@ export default function CharacterList() {
         campaign_id: campaignId!,
         name: newName.trim(),
       }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['characters', campaignId] });
+      const previous = queryClient.getQueryData<CharactersResponse>(['characters', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<CharactersResponse>(['characters', campaignId, viewMode], {
+          ...previous,
+          characters: [
+            ...previous.characters,
+            {
+              id: crypto.randomUUID(),
+              campaign_id: campaignId!,
+              name: newName.trim(),
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
       setCreating(false);
       setNewName('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['characters', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['characters', campaignId] });
     },
   });
 
@@ -70,9 +97,11 @@ export default function CharacterList() {
       </div>
 
       {isLoading && (
-        <div className="flex items-center gap-2 text-slate-400">
-          <Spinner size="sm" /> Loading…
-        </div>
+        <ul className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </ul>
       )}
 
       {error && !isLoading && (

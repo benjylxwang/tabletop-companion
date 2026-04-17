@@ -28,18 +28,22 @@ describe('sendError', () => {
     consoleSpy.mockRestore();
   });
 
-  it('maps NotFoundError to 404 { error: "not found" }', () => {
+  it('maps NotFoundError to 404 with code NOT_FOUND', () => {
     const res = makeRes();
     sendError(res, new NotFoundError());
     expect(res._status).toHaveBeenCalledWith(404);
-    expect(res._json).toHaveBeenCalledWith({ error: 'not found' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'NOT_FOUND', message: 'not found' },
+    });
   });
 
   it('maps NotFoundError with custom message', () => {
     const res = makeRes();
     sendError(res, new NotFoundError('campaign missing'));
     expect(res._status).toHaveBeenCalledWith(404);
-    expect(res._json).toHaveBeenCalledWith({ error: 'campaign missing' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'NOT_FOUND', message: 'campaign missing' },
+    });
   });
 
   it('maps ValidationError with details to 400 including details', () => {
@@ -47,21 +51,27 @@ describe('sendError', () => {
     const details = { formErrors: [], fieldErrors: { name: ['required'] } };
     sendError(res, new ValidationError('invalid body', details));
     expect(res._status).toHaveBeenCalledWith(400);
-    expect(res._json).toHaveBeenCalledWith({ error: 'invalid body', details });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'VALIDATION_ERROR', message: 'invalid body', details },
+    });
   });
 
   it('omits details when ValidationError has none', () => {
     const res = makeRes();
     sendError(res, new ValidationError());
     expect(res._status).toHaveBeenCalledWith(400);
-    expect(res._json).toHaveBeenCalledWith({ error: 'invalid request' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'VALIDATION_ERROR', message: 'invalid request' },
+    });
   });
 
-  it('maps ForbiddenError to 403', () => {
+  it('maps ForbiddenError to 403 with code FORBIDDEN', () => {
     const res = makeRes();
     sendError(res, new ForbiddenError());
     expect(res._status).toHaveBeenCalledWith(403);
-    expect(res._json).toHaveBeenCalledWith({ error: 'forbidden' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'FORBIDDEN', message: 'forbidden' },
+    });
   });
 
   it('maps ZodError to 400 with flattened details', () => {
@@ -71,23 +81,39 @@ describe('sendError', () => {
     const res = makeRes();
     if (!result.success) sendError(res, result.error);
     expect(res._status).toHaveBeenCalledWith(400);
-    const body = res._json.mock.calls[0]?.[0] as { error: string; details: unknown };
-    expect(body.error).toBe('invalid request');
-    expect(body.details).toBeDefined();
+    const body = res._json.mock.calls[0]?.[0] as {
+      error: { code: string; message: string; details: unknown };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('invalid request');
+    expect(body.error.details).toBeDefined();
   });
 
-  it('maps unknown errors to 500 { error: "internal" } and logs', () => {
+  it('maps unknown errors to 500 with code INTERNAL_ERROR and logs', () => {
     const res = makeRes();
     sendError(res, new Error('boom'));
     expect(res._status).toHaveBeenCalledWith(500);
-    expect(res._json).toHaveBeenCalledWith({ error: 'internal' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'INTERNAL_ERROR', message: 'internal' },
+    });
     expect(consoleSpy).toHaveBeenCalled();
   });
 
-  it('maps a raw HttpError to its status/message', () => {
+  it('maps a raw HttpError to HTTP_ERROR code', () => {
     const res = makeRes();
     sendError(res, new HttpError(418, 'teapot'));
     expect(res._status).toHaveBeenCalledWith(418);
-    expect(res._json).toHaveBeenCalledWith({ error: 'teapot' });
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'HTTP_ERROR', message: 'teapot' },
+    });
+  });
+
+  it('maps a raw 5xx HttpError to INTERNAL_ERROR code', () => {
+    const res = makeRes();
+    sendError(res, new HttpError(503, 'service unavailable'));
+    expect(res._status).toHaveBeenCalledWith(503);
+    expect(res._json).toHaveBeenCalledWith({
+      error: { code: 'INTERNAL_ERROR', message: 'service unavailable' },
+    });
   });
 });

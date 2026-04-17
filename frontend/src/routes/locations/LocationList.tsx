@@ -17,11 +17,11 @@ import {
   GenerateAllFieldsButton,
   Modal,
   Select,
-  Spinner,
   TextInput,
 } from '../../components';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { EntityAvatar } from '../../components/ui/EntityAvatar';
-import type { Location, LocationCreate } from '@tabletop/shared';
+import type { Location, LocationCreate, LocationsResponse } from '@tabletop/shared';
 
 function CreateLocationModal({
   campaignId,
@@ -42,7 +42,7 @@ function CreateLocationModal({
   const [parentId, setParentId] = useState('');
   const [dmNotes, setDmNotes] = useState('');
 
-  const { isPlayerView } = useViewMode();
+  const { isPlayerView, viewMode } = useViewMode();
 
   function reset() {
     setName('');
@@ -55,10 +55,36 @@ function CreateLocationModal({
 
   const mutation = useMutation({
     mutationFn: (data: LocationCreate) => createLocation(campaignId, data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['locations', campaignId] });
+      const previous = queryClient.getQueryData<LocationsResponse>(['locations', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LocationsResponse>(['locations', campaignId, viewMode], {
+          ...previous,
+          locations: [
+            ...previous.locations,
+            {
+              ...draft,
+              id: crypto.randomUUID(),
+              campaign_id: campaignId,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
       reset();
       onClose();
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['locations', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
     },
   });
 
@@ -237,9 +263,11 @@ export default function LocationList() {
       </div>
 
       {isLoading && (
-        <div className="flex items-center gap-2 text-slate-400">
-          <Spinner size="sm" /> Loading…
-        </div>
+        <ul className="space-y-3 max-w-2xl">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </ul>
       )}
       {error && <ErrorDisplay message="Failed to load locations." />}
 

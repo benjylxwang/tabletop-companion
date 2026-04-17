@@ -25,6 +25,6 @@ export default defineConfig({
     storageState: STORAGE_STATE,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 1024 } } },
   ],
 });

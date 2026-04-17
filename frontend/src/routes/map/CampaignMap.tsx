@@ -14,7 +14,7 @@ import { useSignedUrl } from '../../lib/useSignedUrl';
 import { FileUpload } from '../../components/ui/FileUpload';
 import { GenerateImageButton } from '../../components/ui/GenerateImageButton';
 import { ConfirmModal } from '../../components/ui/Modal';
-import type { Location } from '@tabletop/shared';
+import type { Location, LocationsResponse, CampaignResponse } from '@tabletop/shared';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -170,7 +170,25 @@ export default function CampaignMap() {
   const updatePositionMutation = useMutation({
     mutationFn: ({ locationId, x, y }: { locationId: string; x: number; y: number }) =>
       updateLocation(campaignId!, locationId, { map_x: x, map_y: y }),
-    onSuccess: () => {
+    onMutate: async ({ locationId, x, y }) => {
+      await queryClient.cancelQueries({ queryKey: ['locations', campaignId] });
+      const previous = queryClient.getQueryData<LocationsResponse>(['locations', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<LocationsResponse>(['locations', campaignId, viewMode], {
+          ...previous,
+          locations: previous.locations.map((l) =>
+            l.id === locationId ? { ...l, map_x: x, map_y: y } : l,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['locations', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['locations', campaignId] });
     },
   });
@@ -178,8 +196,26 @@ export default function CampaignMap() {
   const updateWorldMapMutation = useMutation({
     mutationFn: (path: string | null) =>
       updateCampaign(campaignId!, { world_map_url: path }),
+    onMutate: async (path) => {
+      await queryClient.cancelQueries({ queryKey: ['campaign', campaignId, viewMode] });
+      const previous = queryClient.getQueryData<CampaignResponse>(['campaign', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<CampaignResponse>(['campaign', campaignId, viewMode], {
+          ...previous,
+          campaign: { ...previous.campaign, world_map_url: path ?? undefined },
+        });
+      }
+      return { previous };
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(['campaign', campaignId, viewMode], data);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['campaign', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] });
     },
   });

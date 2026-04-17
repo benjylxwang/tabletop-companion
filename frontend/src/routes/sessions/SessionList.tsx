@@ -14,7 +14,8 @@ import {
   EmptyState,
   ErrorDisplay,
 } from '../../components';
-import type { SessionCreate } from '@tabletop/shared';
+import type { SessionCreate, SessionsResponse } from '@tabletop/shared';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 function CreateSessionModal({
   campaignId,
@@ -38,14 +39,40 @@ function CreateSessionModal({
 
   const mutation = useMutation({
     mutationFn: (data: SessionCreate) => createSession(campaignId, data),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['sessions', campaignId] });
+      const previous = queryClient.getQueryData<SessionsResponse>(['sessions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<SessionsResponse>(['sessions', campaignId, viewMode], {
+          ...previous,
+          sessions: [
+            ...previous.sessions,
+            {
+              ...draft,
+              id: `__temp__${crypto.randomUUID()}`,
+              campaign_id: campaignId,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
       onClose();
       setTitle('');
       setSessionNumber('');
       setDatePlayed('');
       setSummary('');
       setDmNotes('');
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['sessions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
     },
   });
 
@@ -194,7 +221,15 @@ export default function SessionList() {
         {isDm && <Button onClick={() => setShowCreate(true)}>New Session</Button>}
       </div>
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && (
+        <ul className="space-y-2 max-w-3xl">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <li key={i}>
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </li>
+          ))}
+        </ul>
+      )}
       {error && <ErrorDisplay message="Failed to load sessions." />}
 
       {data && data.sessions.length === 0 && (
@@ -211,12 +246,12 @@ export default function SessionList() {
 
       {data && data.sessions.length > 0 && (
         <ul className="space-y-2 max-w-3xl">
-          {data.sessions.map((s) => (
-            <li key={s.id}>
-              <Link
-                to={`/campaigns/${campaignId}/sessions/${s.id}`}
-                className="flex items-center gap-4 rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 hover:border-amber-500/50 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
+          {data.sessions.map((s) => {
+            const isTemp = s.id.startsWith('__temp__');
+            const cardClass =
+              'flex items-center gap-4 rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 transition-colors';
+            const inner = (
+              <>
                 <span className="shrink-0 w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-amber-400">
                   #{s.session_number}
                 </span>
@@ -229,9 +264,23 @@ export default function SessionList() {
                     {s.summary}
                   </p>
                 )}
-              </Link>
-            </li>
-          ))}
+              </>
+            );
+            return (
+              <li key={s.id}>
+                {isTemp ? (
+                  <div className={`${cardClass} opacity-60`}>{inner}</div>
+                ) : (
+                  <Link
+                    to={`/campaigns/${campaignId}/sessions/${s.id}`}
+                    className={`${cardClass} hover:border-amber-500/50 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
+                  >
+                    {inner}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

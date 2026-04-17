@@ -8,6 +8,7 @@ import {
   removeCampaignMember,
   fetchCampaign,
 } from '../../lib/api';
+import type { CampaignMembersResponse } from '@tabletop/shared';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import { useAuth } from '../../lib/auth';
 import { Button, TextInput, Spinner, ErrorDisplay } from '../../components';
@@ -65,7 +66,23 @@ export default function CampaignMembers() {
 
   const removeMutation = useMutation({
     mutationFn: (userId: string) => removeCampaignMember(id!, userId),
-    onSuccess: () => {
+    onMutate: async (userId) => {
+      await queryClient.cancelQueries({ queryKey: ['campaign', id, 'members'] });
+      const previous = queryClient.getQueryData<CampaignMembersResponse>(['campaign', id, 'members']);
+      if (previous) {
+        queryClient.setQueryData<CampaignMembersResponse>(['campaign', id, 'members'], {
+          ...previous,
+          members: previous.members.filter((m) => m.user_id !== userId),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['campaign', id, 'members'], ctx.previous);
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['campaign', id, 'members'] });
     },
   });

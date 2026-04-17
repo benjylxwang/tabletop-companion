@@ -25,7 +25,7 @@ import {
   Spinner,
   ErrorDisplay,
 } from '../../components';
-import type { SessionWithRefsResponse } from '@tabletop/shared';
+import type { SessionWithRefsResponse, SessionsResponse, NpcsResponse, LocationsResponse } from '@tabletop/shared';
 
 // ─── Linked entity chip ───────────────────────────────────────────────────────
 
@@ -124,14 +124,6 @@ export default function SessionDetail() {
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
 
-  function invalidateSession() {
-    void queryClient.invalidateQueries({ queryKey: ['session', campaignId, sessionId] });
-  }
-
-  function invalidateSessions() {
-    void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
-  }
-
   const updateMutation = useMutation({
     mutationFn: () => {
       const highlights = highlightsRaw
@@ -147,45 +139,181 @@ export default function SessionDetail() {
         dm_notes: dmNotes || undefined,
       });
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['session', campaignId, sessionId, viewMode] });
+      const previous = queryClient.getQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode]);
+      if (previous) {
+        const highlights = highlightsRaw
+          .split(/[\n,]+/)
+          .map((h) => h.trim())
+          .filter(Boolean);
+        queryClient.setQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode], {
+          ...previous,
+          session: {
+            ...previous.session,
+            title,
+            date_played: datePlayed,
+            summary: summary || undefined,
+            highlights: highlights.length > 0 ? highlights : undefined,
+            xp_awarded: xpAwarded !== '' ? parseInt(xpAwarded, 10) : undefined,
+            dm_notes: dmNotes || undefined,
+          },
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      invalidateSession();
-      invalidateSessions();
       setEditing(false);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['session', campaignId, sessionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['session', campaignId, sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteSession(campaignId!, sessionId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['sessions', campaignId] });
+      const previous = queryClient.getQueryData<SessionsResponse>(['sessions', campaignId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<SessionsResponse>(['sessions', campaignId, viewMode], {
+          ...previous,
+          sessions: previous.sessions.filter((s) => s.id !== sessionId),
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
-      invalidateSessions();
       navigate(`/campaigns/${campaignId}/sessions`);
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['sessions', campaignId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['sessions', campaignId] });
     },
   });
 
   const addNpcMutation = useMutation({
     mutationFn: (npcId: string) => addSessionNpc(campaignId!, sessionId!, npcId),
+    onMutate: async (npcId) => {
+      await queryClient.cancelQueries({ queryKey: ['session', campaignId, sessionId, viewMode] });
+      const previous = queryClient.getQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode]);
+      if (previous) {
+        const npcName =
+          queryClient.getQueryData<NpcsResponse>(['npcs', campaignId, viewMode])?.npcs.find((n) => n.id === npcId)?.name ?? 'Unknown';
+        queryClient.setQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode], {
+          ...previous,
+          session: {
+            ...previous.session,
+            linked_npcs: [...previous.session.linked_npcs, { id: npcId, name: npcName }],
+          },
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
       setSelectedNpcId('');
-      invalidateSession();
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['session', campaignId, sessionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['session', campaignId, sessionId] });
     },
   });
 
   const removeNpcMutation = useMutation({
     mutationFn: (npcId: string) => removeSessionNpc(campaignId!, sessionId!, npcId),
-    onSuccess: () => invalidateSession(),
+    onMutate: async (npcId) => {
+      await queryClient.cancelQueries({ queryKey: ['session', campaignId, sessionId, viewMode] });
+      const previous = queryClient.getQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode], {
+          ...previous,
+          session: {
+            ...previous.session,
+            linked_npcs: previous.session.linked_npcs.filter((n) => n.id !== npcId),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['session', campaignId, sessionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['session', campaignId, sessionId] });
+    },
   });
 
   const addLocationMutation = useMutation({
     mutationFn: (locationId: string) => addSessionLocation(campaignId!, sessionId!, locationId),
+    onMutate: async (locationId) => {
+      await queryClient.cancelQueries({ queryKey: ['session', campaignId, sessionId, viewMode] });
+      const previous = queryClient.getQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode]);
+      if (previous) {
+        const location = queryClient.getQueryData<LocationsResponse>(['locations', campaignId, viewMode])?.locations.find((l) => l.id === locationId);
+        const locationName = location?.name ?? 'Unknown';
+        queryClient.setQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode], {
+          ...previous,
+          session: {
+            ...previous.session,
+            linked_locations: [...previous.session.linked_locations, { id: locationId, name: locationName }],
+          },
+        });
+      }
+      return { previous };
+    },
     onSuccess: () => {
       setSelectedLocationId('');
-      invalidateSession();
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['session', campaignId, sessionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['session', campaignId, sessionId] });
     },
   });
 
   const removeLocationMutation = useMutation({
     mutationFn: (locationId: string) => removeSessionLocation(campaignId!, sessionId!, locationId),
-    onSuccess: () => invalidateSession(),
+    onMutate: async (locationId) => {
+      await queryClient.cancelQueries({ queryKey: ['session', campaignId, sessionId, viewMode] });
+      const previous = queryClient.getQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode]);
+      if (previous) {
+        queryClient.setQueryData<SessionWithRefsResponse>(['session', campaignId, sessionId, viewMode], {
+          ...previous,
+          session: {
+            ...previous.session,
+            linked_locations: previous.session.linked_locations.filter((l) => l.id !== locationId),
+          },
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['session', campaignId, sessionId, viewMode], ctx.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['session', campaignId, sessionId] });
+    },
   });
 
   // ─── Loading / error states ────────────────────────────────────────────────

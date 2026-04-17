@@ -19,6 +19,17 @@ import {
 // schema — that's the source of truth at runtime.
 type UntypedSupabase = SupabaseClient;
 
+// Derives a comma-separated column list from a ZodObject schema, omitting any
+// fields prefixed with `dm_`. Used by list() to avoid SELECTing DM-private
+// columns at all when in player view (defense-in-depth on top of the strip).
+// Falls back to '*' for non-ZodObject schemas so callers always get a safe value.
+function playerColumns(schema: ZodTypeAny): string {
+  if (!(schema instanceof z.ZodObject)) return '*';
+  return Object.keys((schema as z.ZodObject<z.ZodRawShape>).shape)
+    .filter((k) => !k.startsWith('dm_'))
+    .join(',');
+}
+
 type Row = Record<string, unknown>;
 
 // Postgres/PostgREST returns `null` for unset nullable columns, but Zod
@@ -116,14 +127,19 @@ export function createCrudHandlers<
       const campaignId = await resolveCampaignIdRequired(req);
       const role = await requireRole(userId, campaignId);
 
+      // Defense-in-depth: when stripping DM fields, also exclude them from the
+      // SELECT so they are never loaded from the database in the first place.
+      // The cast to '*' satisfies Supabase's template-literal type checking while
+      // still passing the real column list at runtime via the untyped client.
+      const cols = (shouldStrip(role, req) ? playerColumns(baseSchema) : '*') as '*';
       const { data, error } = await client
         .from(table)
-        .select('*')
+        .select(cols)
         .eq('campaign_id', campaignId);
       if (error) throw new HttpError(500, 'database error');
 
       const rows = (data ?? []).map(
-        (r) => baseSchema.parse(nullToUndefined(r as Record<string, unknown>)) as z.infer<TBase>,
+        (r) => baseSchema.parse(nullToUndefined(r as unknown as Record<string, unknown>)) as z.infer<TBase>,
       );
       const payload = shouldStrip(role, req) ? rows.map((r) => stripDmFields(r)) : rows;
       res.status(200).json({ [responseKey.plural]: payload });
